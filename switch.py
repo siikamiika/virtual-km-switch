@@ -12,6 +12,13 @@ import ecodes
 KBD = '/dev/input/by-id/usb-04d9_USB_Keyboard-event-kbd'
 MOUSE = '/dev/input/by-id/usb-Kingsis_Peripherals_ZOWIE_Gaming_mouse-event-mouse'
 
+def cur_time_components():
+    """Current time as (seconds, microseconds)"""
+    time_now = time.time()
+    sec_now = int(time_now)
+    usec_now = int((time_now - sec_now) * 10**6)
+    return sec_now, usec_now
+
 class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
     """Grabs a hardware keyboard and a mouse and redirects their input events
     to virtual input devices."""
@@ -151,21 +158,9 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                         virt_group[original_fd].syn()
 
     def _simulate_keypress(self, keycode, original_fd):
-        time_now = time.time()
-        time_release = time_now + 0.01
-
-        sec_now = int(time_now)
-        usec_now = int((time_now - sec_now) * 10**6)
-
-        sec_release = int(time_release)
-        usec_release = int((time_release - sec_release) * 10**6)
-
-        key_down = evdev.InputEvent(sec_now, usec_now, ecodes.EV_KEY, keycode, 1)
+        key_down = evdev.InputEvent(*cur_time_components(), ecodes.EV_KEY, keycode, 1)
         self._route_event(key_down, original_fd, artificial=True)
-
-        time.sleep(0.01)
-
-        key_up = evdev.InputEvent(sec_release, usec_release, ecodes.EV_KEY, keycode, 0)
+        key_up = evdev.InputEvent(*cur_time_components(), ecodes.EV_KEY, keycode, 0)
         self._route_event(key_up, original_fd, artificial=True)
 
 def main():
