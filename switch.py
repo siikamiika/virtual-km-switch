@@ -142,8 +142,8 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                     virt_group[original_fd].syn()
                 else:
                     if ((event.code in self.remaps) and
-                            (not self.noswitch or
-                             self.noswitch_modifier in self.hw_kbd.active_keys())):
+                            (not self.noswitch and
+                             not self.noswitch_modifier in self.hw_kbd.active_keys())):
                         event.code = self.remaps[event.code]
                     virt_group[original_fd].write_event(event)
                     # workaround. could the bug be related to thread safety?
