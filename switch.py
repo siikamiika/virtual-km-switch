@@ -132,6 +132,11 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def _route_event(self, event, original_fd, artificial=False):
         if self.active_virt_group is not None:
+            if ((event.code in self.remaps) and
+                    (not self.noswitch and
+                     not self.noswitch_modifier in self.hw_kbd.active_keys())):
+                event.code = self.remaps[event.code]
+
             if event.code in self.broadcast_keys:
                 virt_groups = self.virt_group_by_hotkey.values()
             else:
@@ -141,10 +146,6 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 if event.type == SYN_REPORT: # pylint: disable=undefined-variable
                     virt_group[original_fd].syn()
                 else:
-                    if ((event.code in self.remaps) and
-                            (not self.noswitch and
-                             not self.noswitch_modifier in self.hw_kbd.active_keys())):
-                        event.code = self.remaps[event.code]
                     virt_group[original_fd].write_event(event)
                     # workaround. could the bug be related to thread safety?
                     if artificial or event.code in self.broadcast_keys:
@@ -182,7 +183,7 @@ def main():
     km_switch.add_broadcast_key(KEY_MUHENKAN)
     km_switch.add_broadcast_key(KEY_KP1)
     km_switch.add_broadcast_key(KEY_KP2)
-    km_switch.add_broadcast_key(KEY_F4)
+    km_switch.add_broadcast_key(KEY_KP4)
     km_switch.set_noswitch_modifier(KEY_MUHENKAN)
     km_switch.set_noswitch_toggle(KEY_ESC)
 
