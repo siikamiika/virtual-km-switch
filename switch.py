@@ -6,7 +6,8 @@ import os
 import re
 import asyncio
 import evdev
-from evdev.ecodes import * # pylint: disable=unused-wildcard-import,wildcard-import
+
+import ecodes
 
 KBD = '/dev/input/by-id/usb-04d9_USB_Keyboard-event-kbd'
 MOUSE = '/dev/input/by-id/usb-Kingsis_Peripherals_ZOWIE_Gaming_mouse-event-mouse'
@@ -74,7 +75,6 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def start_loop(self):
         """Start the virtual KM switch operation"""
-        # prevent doubled input from hw devices
         for device in self.hw_kbd, self.hw_mouse:
             asyncio.ensure_future(self._handle_events(device))
 
@@ -104,12 +104,11 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     async def _try_handle_events(self, device, original_fd):
         async for event in device.async_read_loop():
-            # pylint: disable=undefined-variable
             # toggle hotkeys
-            if event.type == EV_KEY and event.code == self.noswitch_toggle:
+            if event.type == ecodes.EV_KEY and event.code == self.noswitch_toggle:
                 if event.value == 0:
                     self.noswitch = not self.noswitch
-                    self.hw_kbd.set_led(LED_SCROLLL, self.noswitch)
+                    self.hw_kbd.set_led(ecodes.LED_SCROLLL, self.noswitch)
                 continue
             # let switch key through
             elif self.noswitch or self.noswitch_modifier in self.hw_kbd.active_keys():
@@ -143,7 +142,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 virt_groups = [self.virt_group_by_hotkey[self.active_virt_group]]
 
             for virt_group in virt_groups:
-                if event.type == SYN_REPORT: # pylint: disable=undefined-variable
+                if event.type == ecodes.SYN_REPORT:
                     virt_group[original_fd].syn()
                 else:
                     virt_group[original_fd].write_event(event)
@@ -152,7 +151,6 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                         virt_group[original_fd].syn()
 
     def _simulate_keypress(self, keycode, original_fd):
-        # pylint: disable=undefined-variable
         time_now = time.time()
         time_release = time_now + 0.01
 
@@ -162,34 +160,33 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
         sec_release = int(time_release)
         usec_release = int((time_release - sec_release) * 10**6)
 
-        key_down = evdev.InputEvent(sec_now, usec_now, EV_KEY, keycode, 1)
+        key_down = evdev.InputEvent(sec_now, usec_now, ecodes.EV_KEY, keycode, 1)
         self._route_event(key_down, original_fd, artificial=True)
 
         time.sleep(0.01)
 
-        key_up = evdev.InputEvent(sec_release, usec_release, EV_KEY, keycode, 0)
+        key_up = evdev.InputEvent(sec_release, usec_release, ecodes.EV_KEY, keycode, 0)
         self._route_event(key_up, original_fd, artificial=True)
 
 def main():
     """Initialize the KM switch and start it"""
-    # pylint: disable=undefined-variable
     km_switch = VirtualKMSwitch(KBD, MOUSE)
 
     # map F1 and F2 to switching a virtual device and notify about the switch by
     # sending KEY_KP1 or KEY_KP2
-    km_switch.add_virtual_device_group(KEY_F1, 'windows', notify_key=KEY_KP1)
-    km_switch.add_virtual_device_group(KEY_F2, 'linux', notify_key=KEY_KP2)
+    km_switch.add_virtual_device_group(ecodes.KEY_F1, 'windows', notify_key=ecodes.KEY_KP1)
+    km_switch.add_virtual_device_group(ecodes.KEY_F2, 'linux', notify_key=ecodes.KEY_KP2)
 
-    km_switch.add_broadcast_key(KEY_MUHENKAN)
-    km_switch.add_broadcast_key(KEY_KP1)
-    km_switch.add_broadcast_key(KEY_KP2)
-    km_switch.add_broadcast_key(KEY_KP4)
-    km_switch.set_noswitch_modifier(KEY_MUHENKAN)
-    km_switch.set_noswitch_toggle(KEY_ESC)
+    km_switch.add_broadcast_key(ecodes.KEY_MUHENKAN)
+    km_switch.add_broadcast_key(ecodes.KEY_KP1)
+    km_switch.add_broadcast_key(ecodes.KEY_KP2)
+    km_switch.add_broadcast_key(ecodes.KEY_KP4)
+    km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
+    km_switch.set_noswitch_toggle(ecodes.KEY_ESC)
 
-    km_switch.remaps[KEY_F4] = KEY_KP4
+    km_switch.remaps[ecodes.KEY_F4] = ecodes.KEY_KP4
 
-    km_switch.set_active(True, KEY_F2)
+    km_switch.set_active(True, ecodes.KEY_F2)
 
     km_switch.start_loop()
 
