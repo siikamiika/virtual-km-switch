@@ -5,19 +5,14 @@ import time
 import os
 import re
 import asyncio
+import types
+
 import evdev
 
 import ecodes
 
 KBD = '/dev/input/by-id/usb-04d9_USB_Keyboard-event-kbd'
 MOUSE = '/dev/input/by-id/usb-Kingsis_Peripherals_ZOWIE_Gaming_mouse-event-mouse'
-
-def cur_time_components():
-    """Current time as (seconds, microseconds)"""
-    time_now = time.time()
-    sec_now = int(time_now)
-    usec_now = int((time_now - sec_now) * 10**6)
-    return sec_now, usec_now
 
 class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
     """Grabs a hardware keyboard and a mouse and redirects their input events
@@ -109,12 +104,10 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                     time.sleep(1)
 
     async def _try_handle_events(self, device, original_fd):
-        ignore_until_release = set()
+        accepted_types = {ecodes.EV_KEY, ecodes.EV_REL}
         async for event in device.async_read_loop():
-            # keys that are ignored until they are released
-            if event.code in ignore_until_release:
-                if event.value == 0:
-                    ignore_until_release.remove(event.code)
+            # ignore noise
+            if event.type not in accepted_types:
                 continue
 
             # toggle noswitch mode
@@ -128,10 +121,8 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 pass
             # switch key pressed. start redirecting input to a virtual device
             elif event.code in self.virt_group_by_hotkey:
+                print(evdev.categorize(event))
                 if event.value == 1:
-                    # ignore release and repeat events for the hotkey until first release
-                    ignore_until_release.add(event.code)
-
                     # release keys from the current virtual device
                     virt_device = self.virt_group_by_hotkey[self.active_virt_group][original_fd]
                     for key in virt_device.device.active_keys():
@@ -154,10 +145,6 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             self._route_event(event, original_fd)
 
     def _route_event(self, event, original_fd):
-        # doesn't work with asyncio. syn() called separately
-        if event.type == ecodes.SYN_REPORT:
-            return
-
         if self.active_virt_group is not None:
             # only remap in normal (not noswitch) mode
             if event.code in self.remaps and not self._is_noswitch():
@@ -176,10 +163,10 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def _simulate_keypress(self, keycode, original_fd):
         # down
-        key_down = evdev.InputEvent(*cur_time_components(), ecodes.EV_KEY, keycode, 1)
+        key_down = types.SimpleNamespace(type=ecodes.EV_KEY, code=keycode, value=1)
         self._route_event(key_down, original_fd)
         # up
-        key_up = evdev.InputEvent(*cur_time_components(), ecodes.EV_KEY, keycode, 0)
+        key_up = types.SimpleNamespace(type=ecodes.EV_KEY, code=keycode, value=0)
         self._route_event(key_up, original_fd)
 
     def _is_noswitch(self):
