@@ -129,10 +129,18 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             # switch key pressed. start redirecting input to a virtual device
             elif event.code in self.virt_group_by_hotkey:
                 if event.value == 1:
-                    # ignore release and repeat events
+                    # ignore release and repeat events for the hotkey until first release
                     ignore_until_release.add(event.code)
+
+                    # release keys from the current virtual device
+                    virt_device = self.virt_group_by_hotkey[self.active_virt_group][original_fd]
+                    for key in virt_device.device.active_keys():
+                        virt_device.write(ecodes.EV_KEY, key, 0)
+                        virt_device.syn()
+
+                    # activate the new virtual device and notify about it
                     self.set_active(True, event.code)
-                    notify_key = self.virt_group_by_hotkey[event.code]['notify_key']
+                    notify_key = self.virt_group_by_hotkey[event.code].get('notify_key')
                     if notify_key:
                         self._simulate_keypress(notify_key, original_fd)
                 continue
