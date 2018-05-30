@@ -40,7 +40,6 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def add_virtual_device_group(self, hotkey, base, notify_key=None):
         """Add a virtual keyboard and a mouse that are activated with `hotkey`."""
-        # pylint: disable=multiple-statements
         virt_kbd = evdev.UInput.from_device(self.hw_kbd, name=f'{base}-virt-kbd')
         virt_mouse = evdev.UInput.from_device(self.hw_mouse, name=f'{base}-virt-mouse')
         for device in virt_kbd, virt_mouse:
@@ -111,16 +110,16 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     async def _try_handle_events(self, device, original_fd):
         async for event in device.async_read_loop():
-            # toggle hotkeys
+            # toggle noswitch mode
             if event.type == ecodes.EV_KEY and event.code == self.noswitch_toggle:
                 if event.value == 0:
                     self.noswitch = not self.noswitch
                     self.hw_kbd.set_led(ecodes.LED_SCROLLL, self.noswitch)
                 continue
-            # let switch key through
-            elif self.noswitch or self.noswitch_modifier in self.hw_kbd.active_keys():
+            # let switch keys through in noswitch mode
+            elif self._is_noswitch():
                 pass
-            # start redirecting input to a virtual device
+            # switch key pressed. start redirecting input to a virtual device
             elif event.code in self.virt_group_by_hotkey:
                 if event.value == 0:
                     self.set_active(True, event.code)
@@ -128,40 +127,46 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                     if notify_key:
                         self._simulate_keypress(notify_key, original_fd)
                 continue
-            # stop redirecting input to virtual devices
+            # hw hotkey pressed. stop redirecting input to virtual devices
             elif event.code == self.hw_hotkey:
                 if event.value == 0:
                     self.set_active(False)
                 continue
 
+            # else/pass:
             self._route_event(event, original_fd)
 
-    def _route_event(self, event, original_fd, artificial=False):
+    def _route_event(self, event, original_fd):
+        # doesn't work with asyncio. syn() called separately
+        if event.type == ecodes.SYN_REPORT:
+            return
+
         if self.active_virt_group is not None:
-            if ((event.code in self.remaps) and
-                    (not self.noswitch and
-                     not self.noswitch_modifier in self.hw_kbd.active_keys())):
+            # only remap in normal (not noswitch) mode
+            if event.code in self.remaps and not self._is_noswitch():
                 event.code = self.remaps[event.code]
 
+            # select event recipients
             if event.code in self.broadcast_keys:
                 virt_groups = self.virt_group_by_hotkey.values()
             else:
                 virt_groups = [self.virt_group_by_hotkey[self.active_virt_group]]
 
+            # route event to recipient(s) and call syn()
             for virt_group in virt_groups:
-                if event.type == ecodes.SYN_REPORT:
-                    virt_group[original_fd].syn()
-                else:
-                    virt_group[original_fd].write_event(event)
-                    # workaround. could the bug be related to thread safety?
-                    if artificial or event.code in self.broadcast_keys:
-                        virt_group[original_fd].syn()
+                virt_group[original_fd].write_event(event)
+                virt_group[original_fd].syn()
 
     def _simulate_keypress(self, keycode, original_fd):
+        # down
         key_down = evdev.InputEvent(*cur_time_components(), ecodes.EV_KEY, keycode, 1)
-        self._route_event(key_down, original_fd, artificial=True)
+        self._route_event(key_down, original_fd)
+        # up
         key_up = evdev.InputEvent(*cur_time_components(), ecodes.EV_KEY, keycode, 0)
-        self._route_event(key_up, original_fd, artificial=True)
+        self._route_event(key_up, original_fd)
+
+    def _is_noswitch(self):
+        return self.noswitch or self.noswitch_modifier in self.hw_kbd.active_keys()
 
 def main():
     """Initialize the KM switch and start it"""
@@ -172,13 +177,19 @@ def main():
     km_switch.add_virtual_device_group(ecodes.KEY_F1, 'windows', notify_key=ecodes.KEY_KP1)
     km_switch.add_virtual_device_group(ecodes.KEY_F2, 'linux', notify_key=ecodes.KEY_KP2)
 
+    # broadcast VoIP key
     km_switch.add_broadcast_key(ecodes.KEY_MUHENKAN)
+    # broadcast `notify_key`s
     km_switch.add_broadcast_key(ecodes.KEY_KP1)
     km_switch.add_broadcast_key(ecodes.KEY_KP2)
+    # broadcast remapped key (normal mode only)
     km_switch.add_broadcast_key(ecodes.KEY_KP4)
+
+    # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
     km_switch.set_noswitch_toggle(ecodes.KEY_ESC)
 
+    # remaps (normal mode only)
     km_switch.remaps[ecodes.KEY_F4] = ecodes.KEY_KP4
 
     km_switch.set_active(True, ecodes.KEY_F2)
