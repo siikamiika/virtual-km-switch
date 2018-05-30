@@ -109,10 +109,17 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                     time.sleep(1)
 
     async def _try_handle_events(self, device, original_fd):
+        ignore_until_release = set()
         async for event in device.async_read_loop():
+            # keys that are ignored until they are released
+            if event.code in ignore_until_release:
+                if event.value == 0:
+                    ignore_until_release.remove(event.code)
+                continue
+
             # toggle noswitch mode
             if event.type == ecodes.EV_KEY and event.code == self.noswitch_toggle:
-                if event.value == 0:
+                if event.value == 1:
                     self.noswitch = not self.noswitch
                     self.hw_kbd.set_led(ecodes.LED_SCROLLL, self.noswitch)
                 continue
@@ -121,7 +128,9 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 pass
             # switch key pressed. start redirecting input to a virtual device
             elif event.code in self.virt_group_by_hotkey:
-                if event.value == 0:
+                if event.value == 1:
+                    # ignore release and repeat events
+                    ignore_until_release.add(event.code)
                     self.set_active(True, event.code)
                     notify_key = self.virt_group_by_hotkey[event.code]['notify_key']
                     if notify_key:
