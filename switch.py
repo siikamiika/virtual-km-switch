@@ -134,33 +134,26 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def start_loop(self):
         """Start the virtual KM switch operation"""
-        # used to keep track of disconnected devices
-        hw_fn_by_fd = {
-            self.hw_kbd.fd: self.hw_kbd.fn,
-            self.hw_mouse.fd: self.hw_mouse.fn,
-        }
-
         disconnected_fd = -1
 
         while True:
             if disconnected_fd != -1:
                 # try to reconnect disconnected devices
                 try:
-                    device = evdev.InputDevice(hw_fn_by_fd[disconnected_fd])
+                    disconnected_device = self.hw_by_fd[disconnected_fd]
+                    device = evdev.InputDevice(disconnected_device.fn)
                     # grab device to avoid double events
                     if self.active_virt_group is not None:
                         device.grab()
                     # replace references to the disconnected device with the new one
-                    del hw_fn_by_fd[disconnected_fd]
-                    hw_fn_by_fd[device.fd] = device.fn
-                    del self.hw_by_fd[disconnected_fd]
-                    self.hw_by_fd[device.fd] = device
-                    if disconnected_fd == self.hw_kbd.fd:
+                    if disconnected_device is self.hw_kbd:
                         self.hw_kbd = device
                     else:
                         self.hw_mouse = device
+                    del self.hw_by_fd[disconnected_fd]
+                    self.hw_by_fd[device.fd] = device
                     disconnected_fd = -1
-                    print(f'{hw_fn_by_fd[device.fd]} reconnected', file=sys.stderr)
+                    print(f'{self.hw_by_fd[device.fd].fn} reconnected', file=sys.stderr)
                 # device is not back yet, wait
                 except FileNotFoundError:
                     time.sleep(1)
@@ -178,7 +171,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                         self._handle_event(event)
             # device disconnected
             except OSError:
-                print(f'{hw_fn_by_fd[readable_fd]} disconnected', file=sys.stderr)
+                print(f'{self.hw_by_fd[readable_fd].fn} disconnected', file=sys.stderr)
                 self.hw_by_fd[readable_fd].close()
                 disconnected_fd = readable_fd
 
