@@ -198,7 +198,8 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             elif event.code in self.virt_group_by_hotkey:
                 if event.value == 1:
                     # release keys from the current virtual device
-                    self.virt_group_by_hotkey[self.active_virt_group].release_keys()
+                    if self.active_virt_group is not None:
+                        self.virt_group_by_hotkey[self.active_virt_group].release_keys()
                     # activate the new virtual device and notify about it
                     self.set_active(True, event.code)
                     notify_key = self.virt_group_by_hotkey[event.code].notify_key
