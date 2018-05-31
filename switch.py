@@ -14,6 +14,27 @@ import ecodes
 KBD = '/dev/input/by-id/usb-04d9_USB_Keyboard-event-kbd'
 MOUSE = '/dev/input/by-id/usb-Kingsis_Peripherals_ZOWIE_Gaming_mouse-event-mouse'
 
+TIMED_METHODS = {}
+
+def timeit(method):
+    """A decorator for measuring the time spent on running some frequently used method"""
+    def _timed_method(*args, **kwargs):
+        start = time.perf_counter()
+        result = method(*args, **kwargs)
+        end = time.perf_counter()
+
+        if method.__name__ not in TIMED_METHODS:
+            TIMED_METHODS[method.__name__] = []
+        method_times = TIMED_METHODS[method.__name__]
+        method_times.append(end - start)
+        if len(method_times) == 1000:
+            print(f'{method.__name__}: {sum(method_times) / len(method_times)}', file=sys.stderr)
+            del method_times[:]
+
+        return result
+
+    return _timed_method
+
 class VirtualInputGroup(object):
     """A uinput keyboard and mouse"""
     def __init__(self, hw_kbd, hw_mouse, name, notify_key=None):
@@ -50,12 +71,12 @@ class VirtualInputGroup(object):
             self.kbd.syn()
 
     # mouse events
-    def queue_mouse(self, mouse_x=None, mouse_y=None):
+    def queue_mouse_move(self, code, value):
         """Used to combine many small events into an atomic mouse move"""
-        if mouse_x:
-            self.mouse_move_x += mouse_x
-        elif mouse_y:
-            self.mouse_move_y += mouse_y
+        if code == ecodes.REL_X:
+            self.mouse_move_x += value
+        elif code == ecodes.REL_Y:
+            self.mouse_move_y += value
 
     def commit_mouse(self):
         """If the mouse has moved, emit a mouse move event"""
@@ -70,7 +91,7 @@ class VirtualInputGroup(object):
             self.mouse.syn()
             self.mouse_move_x = self.mouse_move_y = 0
 
-    def write_mouse(self, button, value):
+    def write_mouse_button(self, button, value):
         """Emit a mouse button event"""
         self.mouse.write(ecodes.EV_KEY, button, value)
         self.mouse.syn()
@@ -239,16 +260,15 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             # route event to recipient(s)
             for virt_group in virt_groups:
                 virt_group.write_key(event.code, event.value)
+        # mouse button event
         elif event.type == ecodes.EV_KEY and _is_mouse_btn(event.code):
             virt_group = self.virt_group_by_hotkey[self.active_virt_group]
-            virt_group.write_mouse(event.code, event.value)
-        # mouse move event
+            virt_group.write_mouse_button(event.code, event.value)
+        # mouse move or wheel event
         elif event.type == ecodes.EV_REL:
             virt_group = self.virt_group_by_hotkey[self.active_virt_group]
-            if event.code == ecodes.REL_X:
-                virt_group.mouse_move_x += event.value
-            elif event.code == ecodes.REL_Y:
-                virt_group.mouse_move_y += event.value
+            if event.code in {ecodes.REL_X, ecodes.REL_Y}:
+                virt_group.queue_mouse_move(event.code, event.value)
             elif event.code == ecodes.REL_WHEEL:
                 virt_group.scroll_mouse(event.value)
 
