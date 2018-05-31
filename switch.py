@@ -3,6 +3,7 @@
 
 import time
 import os
+import sys
 import re
 from select import select
 
@@ -20,7 +21,6 @@ class VirtualInputGroup(object):
         self.mouse = evdev.UInput.from_device(hw_mouse, name=f'{name}-virt-mouse')
         self.notify_key = notify_key
 
-        # self.mouse_moved = [0, 0]
         self.mouse_move_x = 0
         self.mouse_move_y = 0
 
@@ -134,14 +134,56 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def start_loop(self):
         """Start the virtual KM switch operation"""
+        # used to keep track of disconnected devices
+        hw_fn_by_fd = {
+            self.hw_kbd.fd: self.hw_kbd.fn,
+            self.hw_mouse.fd: self.hw_mouse.fn,
+        }
+
+        disconnected_fd = -1
+
         while True:
+            if disconnected_fd != -1:
+                # try to reconnect disconnected devices
+                try:
+                    device = evdev.InputDevice(hw_fn_by_fd[disconnected_fd])
+                    # grab device to avoid double events
+                    if self.active_virt_group is not None:
+                        device.grab()
+                    # replace references to the disconnected device with the new one
+                    del hw_fn_by_fd[disconnected_fd]
+                    hw_fn_by_fd[device.fd] = device.fn
+                    del self.hw_by_fd[disconnected_fd]
+                    self.hw_by_fd[device.fd] = device
+                    if disconnected_fd == self.hw_kbd.fd:
+                        self.hw_kbd = device
+                    else:
+                        self.hw_mouse = device
+                    disconnected_fd = -1
+                    print(f'{hw_fn_by_fd[device.fd]} reconnected', file=sys.stderr)
+                # device is not back yet, wait
+                except FileNotFoundError:
+                    time.sleep(1)
+                    continue
+
+            # send a single mouse event consisting of multiple smaller ones
             for virt_group in self.virt_group_by_hotkey.values():
                 virt_group.commit_mouse()
+
+            try:
+                # select readable devices from hw keyboard and mouse
+                readable_fds, _, _ = select(self.hw_by_fd, [], [])
+                for readable_fd in readable_fds:
+                    for event in self.hw_by_fd[readable_fd].read():
+                        self._handle_event(event)
+            # device disconnected
+            except OSError:
+                print(f'{hw_fn_by_fd[readable_fd]} disconnected', file=sys.stderr)
+                self.hw_by_fd[readable_fd].close()
+                disconnected_fd = readable_fd
+
+            # fixes some race condition or something
             time.sleep(0.005)
-            readable_fds, _, _ = select(self.hw_by_fd, [], [])
-            for readable_fd in readable_fds:
-                for event in self.hw_by_fd[readable_fd].read():
-                    self._handle_event(event)
 
     def _handle_event(self, event):
         # ignore noise
@@ -210,9 +252,9 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
         elif event.type == ecodes.EV_REL:
             virt_group = self.virt_group_by_hotkey[self.active_virt_group]
             if event.code == ecodes.REL_X:
-                virt_group.mouse_moved[0] += event.value
+                virt_group.mouse_move_x += event.value
             elif event.code == ecodes.REL_Y:
-                virt_group.mouse_moved[1] += event.value
+                virt_group.mouse_move_y += event.value
             elif event.code == ecodes.REL_WHEEL:
                 virt_group.scroll_mouse(event.value)
 
