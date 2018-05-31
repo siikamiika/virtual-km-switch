@@ -5,7 +5,6 @@ import time
 import os
 import re
 from select import select
-import types
 
 import evdev
 
@@ -17,14 +16,13 @@ MOUSE = '/dev/input/by-id/usb-Kingsis_Peripherals_ZOWIE_Gaming_mouse-event-mouse
 class VirtualInputGroup(object):
     """A uinput keyboard and mouse"""
     def __init__(self, hw_kbd, hw_mouse, name, notify_key=None):
-        self.hw_kbd_fd = hw_kbd.fd
-        self.hw_mouse_fd = hw_mouse.fd
-
         self.kbd = evdev.UInput.from_device(hw_kbd, name=f'{name}-virt-kbd')
         self.mouse = evdev.UInput.from_device(hw_mouse, name=f'{name}-virt-mouse')
         self.notify_key = notify_key
 
-        self.mouse_moved = [0, 0]
+        # self.mouse_moved = [0, 0]
+        self.mouse_move_x = 0
+        self.mouse_move_y = 0
 
         # a hacky way to find these devices
         for device in self.kbd, self.mouse:
@@ -34,46 +32,54 @@ class VirtualInputGroup(object):
 
     # key events
     def write_key(self, key, value):
+        """Emit a key event"""
         self.kbd.write(ecodes.EV_KEY, key, value)
         self.kbd.syn()
 
     def press_and_release_key(self, key):
+        """Simulate a key press and release"""
         self.kbd.write(ecodes.EV_KEY, key, 1)
         self.kbd.syn()
         self.kbd.write(ecodes.EV_KEY, key, 0)
         self.kbd.syn()
 
     def release_keys(self):
+        """Release all keys that are active. Used before switching to another virtual input group"""
         for key in self.kbd.device.active_keys():
             self.kbd.write(ecodes.EV_KEY, key, 0)
             self.kbd.syn()
 
     # mouse events
     def queue_mouse(self, mouse_x=None, mouse_y=None):
+        """Used to combine many small events into an atomic mouse move"""
         if mouse_x:
-            self.mouse_moved[0] += mouse_x
+            self.mouse_move_x += mouse_x
         elif mouse_y:
-            self.mouse_moved[1] += mouse_y
+            self.mouse_move_y += mouse_y
 
     def commit_mouse(self):
+        """If the mouse has moved, emit a mouse move event"""
         syn = False
-        if self.mouse_moved[0]:
-            self.mouse.write(ecodes.EV_REL, ecodes.REL_X, self.mouse_moved[0])
+        if self.mouse_move_x:
+            self.mouse.write(ecodes.EV_REL, ecodes.REL_X, self.mouse_move_x)
             syn = True
-        if self.mouse_moved[1]:
-            self.mouse.write(ecodes.EV_REL, ecodes.REL_Y, self.mouse_moved[1])
+        if self.mouse_move_y:
+            self.mouse.write(ecodes.EV_REL, ecodes.REL_Y, self.mouse_move_y)
             syn = True
         if syn:
             self.mouse.syn()
-            self.mouse_moved = [0, 0]
+            self.mouse_move_x = self.mouse_move_y = 0
 
     def write_mouse(self, button, value):
+        """Emit a mouse button event"""
         self.mouse.write(ecodes.EV_KEY, button, value)
         self.mouse.syn()
 
     def scroll_mouse(self, value):
+        """Emit a mouse scroll event"""
         self.mouse.write(ecodes.EV_REL, ecodes.REL_WHEEL, value)
         self.mouse.syn()
+
 
 class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
     """Grabs a hardware keyboard and a mouse and redirects their input events
@@ -137,11 +143,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 for event in self.hw_by_fd[readable_fd].read():
                     self._handle_event(event)
 
-
     def _handle_event(self, event):
-        # debug
-        if event.code in self.virt_group_by_hotkey:
-            print(evdev.categorize(event))
         # ignore noise
         if event.type not in {ecodes.EV_KEY, ecodes.EV_REL}:
             return
@@ -177,7 +179,6 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
         # else/pass:
         self._route_event(event)
-
 
     def _route_event(self, event):
         if self.active_virt_group is None:
