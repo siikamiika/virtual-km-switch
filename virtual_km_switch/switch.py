@@ -12,6 +12,8 @@ import evdev
 
 from .ecodes import * # pylint: disable=wildcard-import,unused-wildcard-import
 
+# pylint: disable=multiple-statements
+
 TIMED_METHODS = {}
 
 def timeit(method):
@@ -40,6 +42,9 @@ class VirtualInputGroup(object):
         self.mouse = evdev.UInput.from_device(hw_mouse, name=f'{name}-virt-mouse')
         self.notify_key = notify_key
 
+        # active keys and mouse buttons
+        self.active_keys = set()
+
         self.mouse_move_x = 0
         self.mouse_move_y = 0
 
@@ -52,6 +57,11 @@ class VirtualInputGroup(object):
     # key events
     def write_key(self, key, value):
         """Emit a key event"""
+        if value == 1:
+            self.active_keys.add(key)
+        elif value == 0:
+            try: self.active_keys.remove(key)
+            except KeyError: pass
         self.kbd.write(EV_KEY, key, value)
         self.kbd.syn()
 
@@ -61,12 +71,6 @@ class VirtualInputGroup(object):
         self.kbd.syn()
         self.kbd.write(EV_KEY, key, 0)
         self.kbd.syn()
-
-    def release_keys(self):
-        """Release all keys that are active. Used before switching to another virtual input group"""
-        for key in self.kbd.device.active_keys():
-            self.kbd.write(EV_KEY, key, 0)
-            self.kbd.syn()
 
     # mouse events
     def queue_mouse_move(self, code, value):
@@ -91,6 +95,11 @@ class VirtualInputGroup(object):
 
     def write_mouse_button(self, button, value):
         """Emit a mouse button event"""
+        if value == 1:
+            self.active_keys.add(button)
+        elif value == 0:
+            try: self.active_keys.remove(button)
+            except KeyError: pass
         self.mouse.write(EV_KEY, button, value)
         self.mouse.syn()
 
@@ -136,10 +145,9 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
         """Toggles switch hotkey functionality"""
         self.noswitch_toggle = keycode
 
-    def set_active(self, active, hotkey=None):
+    def set_active(self, hotkey):
         """Activate a virtual device or restore hw controls"""
-        # pylint: disable=multiple-statements
-        if not active:
+        if hotkey < 0:
             for hw_fd in self.hw_by_fd:
                 try: self.hw_by_fd[hw_fd].ungrab()
                 except IOError: pass
@@ -221,11 +229,8 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             # switch key pressed. start redirecting input to a virtual device
             elif event.code in self.virt_group_by_hotkey:
                 if event.value == 1:
-                    # release keys from the current virtual device
-                    if self.active_virt_group is not None:
-                        self.virt_group_by_hotkey[self.active_virt_group].release_keys()
                     # activate the new virtual device and notify about it
-                    self.set_active(True, event.code)
+                    self.set_active(event.code)
                     notify_key = self.virt_group_by_hotkey[event.code].notify_key
                     if notify_key:
                         for virt_group in self.virt_group_by_hotkey.values():
@@ -234,7 +239,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             # hw hotkey pressed. stop redirecting input to virtual devices
             elif event.code == self.hw_hotkey:
                 if event.value == 0:
-                    self.set_active(False)
+                    self.set_active(-1)
                 return
 
         # else/pass:
@@ -248,25 +253,23 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             # BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, BTN_SIDE, BTN_EXTRA
             return 272 <= keycode <= 276
 
-        # key event
-        if event.type == EV_KEY and not _is_mouse_btn(event.code):
+        # key or mouse button event
+        if event.type == EV_KEY:
             # only remap in normal (not noswitch) mode
             if event.code in self.remaps and not self._is_noswitch():
                 event.code = self.remaps[event.code]
-
-            # select event recipients
-            if event.code in self.broadcast_keys:
-                virt_groups = self.virt_group_by_hotkey.values()
-            else:
-                virt_groups = [self.virt_group_by_hotkey[self.active_virt_group]]
-
             # route event to recipient(s)
-            for virt_group in virt_groups:
-                virt_group.write_key(event.code, event.value)
-        # mouse button event
-        elif event.type == EV_KEY and _is_mouse_btn(event.code):
-            virt_group = self.virt_group_by_hotkey[self.active_virt_group]
-            virt_group.write_mouse_button(event.code, event.value)
+            for hotkey in self.virt_group_by_hotkey:
+                virt_group = self.virt_group_by_hotkey[hotkey]
+                if (event.code in self.broadcast_keys or
+                        hotkey == self.active_virt_group or
+                        (event.code in virt_group.active_keys and event.value in {0, 2})):
+                    # mouse button event
+                    if _is_mouse_btn(event.code):
+                        virt_group.write_mouse_button(event.code, event.value)
+                    # key event
+                    else:
+                        virt_group.write_key(event.code, event.value)
         # mouse move or wheel event
         elif event.type == EV_REL:
             virt_group = self.virt_group_by_hotkey[self.active_virt_group]

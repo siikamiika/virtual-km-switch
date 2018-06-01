@@ -14,9 +14,9 @@ class Handler(socketserver.StreamRequestHandler):
             return
         data = self.rfile.readline().decode('utf-8').strip()
         if data == 'windows':
-            self.server.km_switch.set_active(True, ecodes.KEY_F1)
+            self.server.km_switch.set_active(ecodes.KEY_F1)
         elif data == 'linux':
-            self.server.km_switch.set_active(True, ecodes.KEY_F2)
+            self.server.km_switch.set_active(ecodes.KEY_F2)
 
 class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
@@ -53,7 +53,7 @@ def main():
     km_switch.remaps[ecodes.KEY_F4] = ecodes.KEY_KP4
 
     # set linux active
-    km_switch.set_active(True, ecodes.KEY_F2)
+    km_switch.set_active(ecodes.KEY_F2)
 
     # start loop
     bg_thread = threading.Thread(target=km_switch.start_loop)
