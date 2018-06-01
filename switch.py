@@ -5,6 +5,7 @@ import time
 import os
 import sys
 import re
+import threading
 from select import select
 
 import evdev
@@ -155,38 +156,12 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def start_loop(self):
         """Start the virtual KM switch operation"""
-        disconnected_fd = -1
+        disconnected_fds = set()
 
         while True:
-            if disconnected_fd != -1:
-                # try to reconnect disconnected devices
-                try:
-                    disconnected_device = self.hw_by_fd[disconnected_fd]
-                    device = evdev.InputDevice(disconnected_device.fn)
-                    # grab device to avoid double events
-                    if self.active_virt_group is not None:
-                        device.grab()
-                    # replace references to the disconnected device with the new one
-                    if disconnected_device is self.hw_kbd:
-                        self.hw_kbd = device
-                    else:
-                        self.hw_mouse = device
-                    del self.hw_by_fd[disconnected_fd]
-                    self.hw_by_fd[device.fd] = device
-                    disconnected_fd = -1
-                    print(f'{self.hw_by_fd[device.fd].fn} reconnected', file=sys.stderr)
-                # device is not back yet, wait
-                except FileNotFoundError:
-                    time.sleep(1)
-                    continue
-
-            # send a single mouse event consisting of multiple smaller ones
-            for virt_group in self.virt_group_by_hotkey.values():
-                virt_group.commit_mouse()
-
             try:
                 # select readable devices from hw keyboard and mouse
-                readable_fds, _, _ = select(self.hw_by_fd, [], [])
+                readable_fds, _, _ = select(set(self.hw_by_fd) - disconnected_fds, [], [])
                 for readable_fd in readable_fds:
                     for event in self.hw_by_fd[readable_fd].read():
                         self._handle_event(event)
@@ -194,10 +169,41 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             except OSError:
                 print(f'{self.hw_by_fd[readable_fd].fn} disconnected', file=sys.stderr)
                 self.hw_by_fd[readable_fd].close()
-                disconnected_fd = readable_fd
+                # don't try to read from this fd for now
+                disconnected_fds.add(readable_fd)
+                # try to reconnect in background
+                reconnect_thread = threading.Thread(
+                    target=self._reconnect_device, args=(readable_fd, disconnected_fds))
+                reconnect_thread.start()
+
+            # send a single mouse event consisting of multiple smaller ones
+            for virt_group in self.virt_group_by_hotkey.values():
+                virt_group.commit_mouse()
 
             # fixes some race condition or something
             time.sleep(0.005)
+
+    def _reconnect_device(self, disconnected_fd, disconnected_fds):
+        while True:
+            try:
+                disconnected_device = self.hw_by_fd[disconnected_fd]
+                device = evdev.InputDevice(disconnected_device.fn)
+                # grab device to avoid double events
+                if self.active_virt_group is not None:
+                    device.grab()
+                # replace references to the disconnected device with the new one
+                if disconnected_device is self.hw_kbd:
+                    self.hw_kbd = device
+                else:
+                    self.hw_mouse = device
+                del self.hw_by_fd[disconnected_fd]
+                self.hw_by_fd[device.fd] = device
+                # select from this device again
+                disconnected_fds.remove(disconnected_fd)
+                return print(f'{self.hw_by_fd[device.fd].fn} reconnected', file=sys.stderr)
+            # device is not back yet, wait
+            except (FileNotFoundError, OSError):
+                time.sleep(1)
 
     def _handle_event(self, event):
         # ignore noise
