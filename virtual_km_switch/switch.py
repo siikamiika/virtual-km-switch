@@ -258,12 +258,18 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             # only remap in normal (not noswitch) mode
             if event.code in self.remaps and not self._is_noswitch():
                 event.code = self.remaps[event.code]
+            # don't send keys unreleased from previous virtual device to a new device
+            unreleased_keys = set()
+            for hotkey in self.virt_group_by_hotkey:
+                if hotkey == self.active_virt_group:
+                    continue
+                unreleased_keys |= self.virt_group_by_hotkey[hotkey].active_keys
             # route event to recipient(s)
             for hotkey in self.virt_group_by_hotkey:
                 virt_group = self.virt_group_by_hotkey[hotkey]
                 if (event.code in self.broadcast_keys or
-                        hotkey == self.active_virt_group or
-                        (event.code in virt_group.active_keys and event.value in {0, 2})):
+                        (hotkey == self.active_virt_group and event.code not in unreleased_keys) or
+                        (event.code in virt_group.active_keys and event.value == 0)):
                     # mouse button event
                     if _is_mouse_btn(event.code):
                         virt_group.write_mouse_button(event.code, event.value)
