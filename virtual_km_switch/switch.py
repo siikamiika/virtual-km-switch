@@ -10,10 +10,7 @@ from select import select
 
 import evdev
 
-import ecodes
-
-KBD = '/dev/input/by-id/usb-04d9_USB_Keyboard-event-kbd'
-MOUSE = '/dev/input/by-id/usb-Kingsis_Peripherals_ZOWIE_Gaming_mouse-event-mouse'
+from .ecodes import * # pylint: disable=wildcard-import,unused-wildcard-import
 
 TIMED_METHODS = {}
 
@@ -55,38 +52,38 @@ class VirtualInputGroup(object):
     # key events
     def write_key(self, key, value):
         """Emit a key event"""
-        self.kbd.write(ecodes.EV_KEY, key, value)
+        self.kbd.write(EV_KEY, key, value)
         self.kbd.syn()
 
     def press_and_release_key(self, key):
         """Simulate a key press and release"""
-        self.kbd.write(ecodes.EV_KEY, key, 1)
+        self.kbd.write(EV_KEY, key, 1)
         self.kbd.syn()
-        self.kbd.write(ecodes.EV_KEY, key, 0)
+        self.kbd.write(EV_KEY, key, 0)
         self.kbd.syn()
 
     def release_keys(self):
         """Release all keys that are active. Used before switching to another virtual input group"""
         for key in self.kbd.device.active_keys():
-            self.kbd.write(ecodes.EV_KEY, key, 0)
+            self.kbd.write(EV_KEY, key, 0)
             self.kbd.syn()
 
     # mouse events
     def queue_mouse_move(self, code, value):
         """Used to combine many small events into an atomic mouse move"""
-        if code == ecodes.REL_X:
+        if code == REL_X:
             self.mouse_move_x += value
-        elif code == ecodes.REL_Y:
+        elif code == REL_Y:
             self.mouse_move_y += value
 
     def commit_mouse(self):
         """If the mouse has moved, emit a mouse move event"""
         syn = False
         if self.mouse_move_x:
-            self.mouse.write(ecodes.EV_REL, ecodes.REL_X, self.mouse_move_x)
+            self.mouse.write(EV_REL, REL_X, self.mouse_move_x)
             syn = True
         if self.mouse_move_y:
-            self.mouse.write(ecodes.EV_REL, ecodes.REL_Y, self.mouse_move_y)
+            self.mouse.write(EV_REL, REL_Y, self.mouse_move_y)
             syn = True
         if syn:
             self.mouse.syn()
@@ -94,12 +91,12 @@ class VirtualInputGroup(object):
 
     def write_mouse_button(self, button, value):
         """Emit a mouse button event"""
-        self.mouse.write(ecodes.EV_KEY, button, value)
+        self.mouse.write(EV_KEY, button, value)
         self.mouse.syn()
 
     def scroll_mouse(self, value):
         """Emit a mouse scroll event"""
-        self.mouse.write(ecodes.EV_REL, ecodes.REL_WHEEL, value)
+        self.mouse.write(EV_REL, REL_WHEEL, value)
         self.mouse.syn()
 
 
@@ -207,16 +204,16 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def _handle_event(self, event):
         # ignore noise
-        if event.type not in {ecodes.EV_KEY, ecodes.EV_REL}:
+        if event.type not in {EV_KEY, EV_REL}:
             return
 
         # key event
-        if event.type == ecodes.EV_KEY:
+        if event.type == EV_KEY:
             # toggle noswitch mode
             if event.code == self.noswitch_toggle:
                 if event.value == 1:
                     self.noswitch = not self.noswitch
-                    self.hw_kbd.set_led(ecodes.LED_SCROLLL, self.noswitch)
+                    self.hw_kbd.set_led(LED_SCROLLL, self.noswitch)
                 return
             # let switch keys through in noswitch mode
             elif self._is_noswitch():
@@ -252,7 +249,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             return 272 <= keycode <= 276
 
         # key event
-        if event.type == ecodes.EV_KEY and not _is_mouse_btn(event.code):
+        if event.type == EV_KEY and not _is_mouse_btn(event.code):
             # only remap in normal (not noswitch) mode
             if event.code in self.remaps and not self._is_noswitch():
                 event.code = self.remaps[event.code]
@@ -267,47 +264,16 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             for virt_group in virt_groups:
                 virt_group.write_key(event.code, event.value)
         # mouse button event
-        elif event.type == ecodes.EV_KEY and _is_mouse_btn(event.code):
+        elif event.type == EV_KEY and _is_mouse_btn(event.code):
             virt_group = self.virt_group_by_hotkey[self.active_virt_group]
             virt_group.write_mouse_button(event.code, event.value)
         # mouse move or wheel event
-        elif event.type == ecodes.EV_REL:
+        elif event.type == EV_REL:
             virt_group = self.virt_group_by_hotkey[self.active_virt_group]
-            if event.code in {ecodes.REL_X, ecodes.REL_Y}:
+            if event.code in {REL_X, REL_Y}:
                 virt_group.queue_mouse_move(event.code, event.value)
-            elif event.code == ecodes.REL_WHEEL:
+            elif event.code == REL_WHEEL:
                 virt_group.scroll_mouse(event.value)
 
     def _is_noswitch(self):
         return self.noswitch or self.noswitch_modifier in self.hw_kbd.active_keys()
-
-def main():
-    """Initialize the KM switch and start it"""
-    km_switch = VirtualKMSwitch(KBD, MOUSE)
-
-    # map F1 and F2 to switching a virtual device and notify about the switch by
-    # sending KEY_KP1 or KEY_KP2
-    km_switch.add_virtual_device_group(ecodes.KEY_F1, 'windows', notify_key=ecodes.KEY_KP1)
-    km_switch.add_virtual_device_group(ecodes.KEY_F2, 'linux', notify_key=ecodes.KEY_KP2)
-
-    # broadcast VoIP key
-    km_switch.add_broadcast_key(ecodes.KEY_MUHENKAN)
-    # # broadcast `notify_key`s
-    # km_switch.add_broadcast_key(ecodes.KEY_KP1)
-    # km_switch.add_broadcast_key(ecodes.KEY_KP2)
-    # broadcast remapped key (normal mode only)
-    km_switch.add_broadcast_key(ecodes.KEY_KP4)
-
-    # set noswitch modifier and lock
-    km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
-    km_switch.set_noswitch_toggle(ecodes.KEY_ESC)
-
-    # remaps (normal mode only)
-    km_switch.remaps[ecodes.KEY_F4] = ecodes.KEY_KP4
-
-    km_switch.set_active(True, ecodes.KEY_F2)
-
-    km_switch.start_loop()
-
-if __name__ == '__main__':
-    main()
