@@ -122,9 +122,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
         self.virt_group_by_hotkey = {}
         self.active_virt_group = None
         # special
-        self.broadcast_keys = set()
         self.callbacks_by_key = dict()
-        self.remaps = dict()
         self.noswitch_modifier = None
         self.noswitch_toggle = None
         self.noswitch = False
@@ -133,10 +131,6 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
         """Add a virtual keyboard and a mouse that are activated with `hotkey`."""
         self.virt_group_by_hotkey[hotkey] = VirtualInputGroup(
             self.hw_kbd, self.hw_mouse, name, notify_key=notify_key)
-
-    def add_broadcast_key(self, keycode):
-        """A key to be sent to every virtual device"""
-        self.broadcast_keys.add(keycode)
 
     def add_callback_key(self, keycode, callback):
         """A key that triggers a callback"""
@@ -267,9 +261,6 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
         # key or mouse button event
         if event.type == EV_KEY:
-            # only remap in normal (not noswitch) mode
-            if event.code in self.remaps and not self._is_noswitch():
-                event.code = self.remaps[event.code]
             # don't send keys unreleased from previous virtual device to a new device
             unreleased_keys = set()
             for hotkey in self.virt_group_by_hotkey:
@@ -279,8 +270,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             # route event to recipient(s)
             for hotkey in self.virt_group_by_hotkey:
                 virt_group = self.virt_group_by_hotkey[hotkey]
-                if (event.code in self.broadcast_keys or
-                        (hotkey == self.active_virt_group and event.code not in unreleased_keys) or
+                if ((hotkey == self.active_virt_group and event.code not in unreleased_keys) or
                         (event.code in virt_group.active_keys and event.value == 0)):
                     # mouse button event
                     if _is_mouse_btn(event.code):

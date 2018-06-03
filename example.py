@@ -37,26 +37,25 @@ def main():
     km_switch.add_virtual_device_group(ecodes.KEY_F1, 'windows', notify_key=ecodes.KEY_KP1)
     km_switch.add_virtual_device_group(ecodes.KEY_F2, 'linux', notify_key=ecodes.KEY_KP2)
 
+    # special callbacks (normal mode only)
     # broadcast VoIP key
-    km_switch.add_broadcast_key(ecodes.KEY_MUHENKAN)
-    # # broadcast `notify_key`s
-    # km_switch.add_broadcast_key(ecodes.KEY_KP1)
-    # km_switch.add_broadcast_key(ecodes.KEY_KP2)
-    # broadcast remapped key (normal mode only)
-    km_switch.add_broadcast_key(ecodes.KEY_KP4)
-
-    # special callbacks
+    def _handle_key_muhenkan(event):
+        for virt_group in km_switch.virt_group_by_hotkey.values():
+            virt_group.write_key(event.code, event.value)
+    km_switch.add_callback_key(ecodes.KEY_MUHENKAN, _handle_key_muhenkan)
     # send clipboard key to windows only
     def _handle_key_compose(event):
         km_switch.virt_group_by_hotkey[ecodes.KEY_F1].write_key(event.code, event.value)
     km_switch.add_callback_key(ecodes.KEY_COMPOSE, _handle_key_compose)
+    # remap f4 to keypad 4 and broadcast it
+    def _handle_key_f4(event):
+        event.code = ecodes.KEY_KP4
+        for virt_group in km_switch.virt_group_by_hotkey.values():
+            virt_group.write_key(event.code, event.value)
 
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
     km_switch.set_noswitch_toggle(ecodes.KEY_ESC)
-
-    # remaps (normal mode only)
-    km_switch.remaps[ecodes.KEY_F4] = ecodes.KEY_KP4
 
     # set linux active
     km_switch.set_active(ecodes.KEY_F2)
