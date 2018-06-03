@@ -45,6 +45,12 @@ def main():
     # broadcast remapped key (normal mode only)
     km_switch.add_broadcast_key(ecodes.KEY_KP4)
 
+    # special callbacks
+    # send clipboard key to windows only
+    def _handle_key_compose(event):
+        km_switch.virt_group_by_hotkey[ecodes.KEY_F1].write_key(event.code, event.value)
+    km_switch.add_callback_key(ecodes.KEY_COMPOSE, _handle_key_compose)
+
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
     km_switch.set_noswitch_toggle(ecodes.KEY_ESC)

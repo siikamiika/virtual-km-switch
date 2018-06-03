@@ -123,6 +123,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
         self.active_virt_group = None
         # special
         self.broadcast_keys = set()
+        self.callbacks_by_key = dict()
         self.remaps = dict()
         self.noswitch_modifier = None
         self.noswitch_toggle = None
@@ -136,6 +137,12 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
     def add_broadcast_key(self, keycode):
         """A key to be sent to every virtual device"""
         self.broadcast_keys.add(keycode)
+
+    def add_callback_key(self, keycode, callback):
+        """A key that triggers a callback"""
+        if keycode not in self.callbacks_by_key:
+            self.callbacks_by_key[keycode] = callbacks = []
+        callbacks.append(callback)
 
     def set_noswitch_modifier(self, keycode):
         """When holding this key, switch hotkeys will be sent to the virtual device"""
@@ -240,6 +247,11 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             elif event.code == self.hw_hotkey:
                 if event.value == 0:
                     self.set_active(-1)
+                return
+            # the event triggers a callback
+            elif event.code in self.callbacks_by_key:
+                for callback in self.callbacks_by_key[event.code]:
+                    callback(event)
                 return
 
         # else/pass:
