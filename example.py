@@ -52,6 +52,7 @@ def main():
         event.code = ecodes.KEY_KP4
         for virt_group in km_switch.virt_group_by_hotkey.values():
             virt_group.write_key(event.code, event.value)
+    km_switch.add_callback_key(ecodes.KEY_F4, _handle_key_f4)
 
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
