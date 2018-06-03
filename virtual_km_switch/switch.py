@@ -242,11 +242,12 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 if event.value == 0:
                     self.set_active(-1)
                 return
-            # the event triggers a callback
-            elif event.code in self.callbacks_by_key:
-                for callback in self.callbacks_by_key[event.code]:
-                    callback(event)
-                return
+
+        # the event triggers a callback
+        if event.code in self.callbacks_by_key:
+            for callback in self.callbacks_by_key[event.code]:
+                callback(event)
+            return
 
         # else/pass:
         self._route_event(event)
