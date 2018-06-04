@@ -91,6 +91,23 @@ def main():
             for virt_group in km_switch.virt_group_by_hotkey.values():
                 virt_group.write_key(event.code, event.value)
     km_switch.add_callback_key(ecodes.KEY_F4, _handle_key_f4)
+    # remap numpad numbers to regular number keys (numpad keycodes are used for notifications)
+    def remap_active(from_code, to_code):
+        """Simple keycode remap for the active virtual group"""
+        def _handle_remap(event):
+            event.code = to_code
+            km_switch.route_event(event)
+        km_switch.add_callback_key(from_code, _handle_remap)
+    remap_active(ecodes.KEY_KP0, ecodes.KEY_0)
+    remap_active(ecodes.KEY_KP1, ecodes.KEY_1)
+    remap_active(ecodes.KEY_KP2, ecodes.KEY_2)
+    remap_active(ecodes.KEY_KP3, ecodes.KEY_3)
+    remap_active(ecodes.KEY_KP4, ecodes.KEY_4)
+    remap_active(ecodes.KEY_KP5, ecodes.KEY_5)
+    remap_active(ecodes.KEY_KP6, ecodes.KEY_6)
+    remap_active(ecodes.KEY_KP7, ecodes.KEY_7)
+    remap_active(ecodes.KEY_KP8, ecodes.KEY_8)
+    remap_active(ecodes.KEY_KP9, ecodes.KEY_9)
 
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
