@@ -1,0 +1,6 @@
+# linux
+SUBSYSTEMS=="input", ATTRS{name}=="linux-virt-kbd",     SYMLINK+="input/by-id/linux-virt-kbd"
+SUBSYSTEMS=="input", ATTRS{name}=="linux-virt-mouse",   SYMLINK+="input/by-id/linux-virt-mouse"
+# windows
+SUBSYSTEMS=="input", ATTRS{name}=="windows-virt-kbd",   SYMLINK+="input/by-id/windows-virt-kbd"
+SUBSYSTEMS=="input", ATTRS{name}=="windows-virt-mouse", SYMLINK+="input/by-id/windows-virt-mouse"
