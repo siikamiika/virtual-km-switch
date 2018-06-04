@@ -33,9 +33,9 @@ def main():
     while True:
         current_pos = get_mouse_pos()
         # switch if we are at the edge and the mouse has moved
-        if current_pos[0] >= 1919 and current_pos != last_pos:
-            switch(auth, current_pos[1])
         if current_pos != last_pos:
+            if current_pos[0] >= 1919:
+                switch(auth, current_pos[1])
             last_pos = current_pos
         time.sleep(0.05)
 
