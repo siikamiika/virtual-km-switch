@@ -73,11 +73,24 @@ def main():
     def _handle_key_compose(event):
         km_switch.virt_group_by_hotkey[ecodes.KEY_F1].write_key(event.code, event.value)
     km_switch.add_callback_key(ecodes.KEY_COMPOSE, _handle_key_compose)
-    # remap f4 to keypad 4 and broadcast it
+    # if alt is active, send key as-is (alt+f4)
+    # else, remap f4 to keypad 4 and broadcast it
+    alt_f4_over = True
     def _handle_key_f4(event):
-        event.code = ecodes.KEY_KP4
-        for virt_group in km_switch.virt_group_by_hotkey.values():
+        nonlocal alt_f4_over
+        if ((event.value == 1 and
+             {ecodes.KEY_LEFTALT, ecodes.KEY_RIGHTALT} & set(km_switch.hw_kbd.active_keys())) or
+                not alt_f4_over):
+            if event.value == 0:
+                alt_f4_over = True
+            else:
+                alt_f4_over = False
+            virt_group = km_switch.virt_group_by_hotkey[km_switch.active_virt_group]
             virt_group.write_key(event.code, event.value)
+        else:
+            event.code = ecodes.KEY_KP4
+            for virt_group in km_switch.virt_group_by_hotkey.values():
+                virt_group.write_key(event.code, event.value)
     km_switch.add_callback_key(ecodes.KEY_F4, _handle_key_f4)
 
     # set noswitch modifier and lock
