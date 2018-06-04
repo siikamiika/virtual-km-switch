@@ -10,22 +10,23 @@ def get_mouse_pos():
     data = root.query_pointer()._data
     return data["root_x"], data["root_y"]
 
-def switch(auth):
+def switch(auth, mouse_y):
     sock = socket.socket()
     sock.connect(('127.0.0.1', 9898))
     sock.send(auth + b'\n')
-    sock.send(b'windows\n')
+    sock.send(f'windows {mouse_y}\n'.encode('utf-8'))
 
 def main():
     with open(os.path.expanduser('~/.windows-hotkey-server'), 'rb') as f:
         auth = f.read().strip()
 
     should_switch = True
+    last_mouse_y = 0
     while True:
         mouse_x, mouse_y = get_mouse_pos()
         if mouse_x <= 0:
             if should_switch:
-                switch(auth)
+                switch(auth, mouse_y)
             should_switch = False
         else:
             should_switch = True

@@ -12,11 +12,30 @@ class Handler(socketserver.StreamRequestHandler):
     def handle(self):
         if self.rfile.readline(0x2000).strip() != self.server.auth:
             return
-        data = self.rfile.readline().decode('utf-8').strip()
-        if data == 'windows':
+        data = self.rfile.readline().decode('utf-8').split()
+        if data[0] == 'windows':
             self.server.km_switch.set_active(ecodes.KEY_F1)
-        elif data == 'linux':
+        elif data[0] == 'linux':
             self.server.km_switch.set_active(ecodes.KEY_F2)
+
+        current_y = int(data[1])
+        if self.server.last_y != -1:
+            virt_group = self.server.km_switch.virt_group_by_hotkey[
+                self.server.km_switch.active_virt_group]
+            # perform mouse move in smaller parts
+            y_left = current_y - self.server.last_y
+            direction = -1 if y_left < 0 else 1
+            part_size = direction * 100
+            while direction * y_left > 0:
+                next_y_left = y_left - part_size
+                if direction * next_y_left > 0:
+                    actual_part_size = part_size
+                else:
+                    actual_part_size = y_left
+                virt_group.queue_mouse_move(ecodes.REL_Y, actual_part_size)
+                virt_group.commit_mouse()
+                y_left = next_y_left
+        self.server.last_y = current_y
 
 class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
@@ -25,6 +44,7 @@ class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
     def __init__(self, *args, **kwargs):
         self.auth = kwargs.pop('auth')
         self.km_switch = kwargs.pop('km_switch')
+        self.last_y = -1
         super().__init__(*args, **kwargs)
 
 def main():
