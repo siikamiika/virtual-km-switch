@@ -252,9 +252,11 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 callback(event)
             return
 
-        self._route_event(event)
+        self.route_event(event)
 
-    def _route_event(self, event):
+    def route_event(self, event):
+        """Route an event to the active virtual input group while making sure that
+        keys are properly released from the previous one"""
         if self.active_virt_group is None:
             return
 

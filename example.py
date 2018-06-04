@@ -85,8 +85,7 @@ def main():
                 alt_f4_over = True
             else:
                 alt_f4_over = False
-            virt_group = km_switch.virt_group_by_hotkey[km_switch.active_virt_group]
-            virt_group.write_key(event.code, event.value)
+            km_switch.route_event(event)
         else:
             event.code = ecodes.KEY_KP4
             for virt_group in km_switch.virt_group_by_hotkey.values():
