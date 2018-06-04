@@ -15,14 +15,20 @@ class Handler(socketserver.StreamRequestHandler):
         data = self.rfile.readline().decode('utf-8').split()
         if data[0] == 'windows':
             self.server.km_switch.set_active(ecodes.KEY_F1)
+            mouse_x = -1
         elif data[0] == 'linux':
             self.server.km_switch.set_active(ecodes.KEY_F2)
+            mouse_x = 1
+
+        # move mouse away from the edge
+        virt_group = self.server.km_switch.virt_group_by_hotkey[
+            self.server.km_switch.active_virt_group]
+        virt_group.queue_mouse_move(ecodes.REL_X, mouse_x)
+        virt_group.commit_mouse()
 
         current_y = int(data[1])
         if self.server.last_y != -1:
-            virt_group = self.server.km_switch.virt_group_by_hotkey[
-                self.server.km_switch.active_virt_group]
-            # perform mouse move in smaller parts
+            # perform vertical mouse move in smaller parts
             y_left = current_y - self.server.last_y
             direction = -1 if y_left < 0 else 1
             part_size = direction * 100
