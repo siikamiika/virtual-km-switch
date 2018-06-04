@@ -2,9 +2,7 @@
 """A virtual KM switch for use with QEMU input-linux"""
 
 import time
-import os
 import sys
-import re
 import threading
 from select import select
 
@@ -47,12 +45,6 @@ class VirtualInputGroup(object):
 
         self.mouse_move_x = 0
         self.mouse_move_y = 0
-
-        # a hacky way to find these devices
-        for device in self.kbd, self.mouse:
-            temp_path = os.path.join('/tmp', re.sub(r'[^a-z]', '_', device.name, re.I))
-            with open(temp_path, 'w') as fh: # pylint: disable=invalid-name
-                fh.write(device.device.fn)
 
     # key events
     def write_key(self, key, value):
