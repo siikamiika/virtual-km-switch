@@ -69,9 +69,21 @@ def main():
         for virt_group in km_switch.virt_group_by_hotkey.values():
             virt_group.write_key(event.code, event.value)
     km_switch.add_callback_key(ecodes.KEY_MUHENKAN, _handle_key_muhenkan)
-    # send clipboard key to windows only
+    # handle clipboard exchange at windows side
     def _handle_key_compose(event):
-        km_switch.virt_group_by_hotkey[ecodes.KEY_F1].write_key(event.code, event.value)
+        # only on keydown
+        if event.value != 1:
+            return
+        # send keys to this virtual input group
+        windows_virt_group = km_switch.virt_group_by_hotkey[ecodes.KEY_F1]
+        # if windows is active, send shift+menu, copying linux clipboard to windows
+        if km_switch.active_virt_group == ecodes.KEY_F1:
+            windows_virt_group.write_key(ecodes.KEY_LEFTSHIFT, 1)
+            windows_virt_group.press_and_release_key(event.code)
+            windows_virt_group.write_key(ecodes.KEY_LEFTSHIFT, 0)
+        # if linux is active, send menu to windows, copying windows clipboard to linux
+        else:
+            windows_virt_group.press_and_release_key(event.code)
     km_switch.add_callback_key(ecodes.KEY_COMPOSE, _handle_key_compose)
     # if alt is active, send key as-is (alt+f4)
     # else, remap f4 to keypad 4 and broadcast it
