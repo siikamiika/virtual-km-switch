@@ -4,6 +4,7 @@
 import os
 import threading
 import socketserver
+import time
 
 from virtual_km_switch import VirtualKMSwitch, ecodes
 
@@ -120,6 +121,20 @@ def main():
     remap_active(ecodes.KEY_KP7, ecodes.KEY_7)
     remap_active(ecodes.KEY_KP8, ecodes.KEY_8)
     remap_active(ecodes.KEY_KP9, ecodes.KEY_9)
+    # make faulty mouse button less annoying
+    btn_right_ns = dict(
+        pressed=False,
+    )
+    def _handle_btn_right(event):
+        if btn_right_ns['pressed'] == event.value:
+            return
+        btn_right_ns['pressed'] = event.value
+        def _press_after_timeout():
+            time.sleep(0.05)
+            if btn_right_ns['pressed'] == event.value:
+                km_switch.route_event(event)
+        threading.Thread(target=_press_after_timeout).start()
+    km_switch.add_callback_key(ecodes.BTN_RIGHT, _handle_btn_right)
 
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
