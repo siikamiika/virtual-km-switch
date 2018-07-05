@@ -122,19 +122,21 @@ def main():
     remap_active(ecodes.KEY_KP8, ecodes.KEY_8)
     remap_active(ecodes.KEY_KP9, ecodes.KEY_9)
     # make faulty mouse button less annoying
-    btn_right_ns = dict(pressed=False)
+    btn_right = dict(hw_pressed=0, virt_pressed=0)
     def _handle_btn_right(event):
-        if btn_right_ns['pressed'] == event.value:
+        btn_right['hw_pressed'] = event.value
+        if btn_right['virt_pressed'] == event.value:
             return
-        btn_right_ns['pressed'] = event.value
         def _press_after_timeout():
             time.sleep(0.05)
-            if btn_right_ns['pressed'] == event.value:
+            if btn_right['hw_pressed'] == event.value:
                 km_switch.route_event(event)
+                btn_right['virt_pressed'] = event.value
         if event.value == 0:
             threading.Thread(target=_press_after_timeout).start()
         else:
             km_switch.route_event(event)
+            btn_right['virt_pressed'] = event.value
     km_switch.add_callback_key(ecodes.BTN_RIGHT, _handle_btn_right)
 
     # set noswitch modifier and lock
