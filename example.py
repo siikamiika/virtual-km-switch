@@ -92,7 +92,7 @@ def main():
     def _handle_key_f4(event):
         nonlocal alt_f4_over
         if ((event.value == 1 and
-             {ecodes.KEY_LEFTALT, ecodes.KEY_RIGHTALT} & set(km_switch.hw_kbd.active_keys())) or
+             {ecodes.KEY_LEFTALT, ecodes.KEY_RIGHTALT} & set(km_switch.hw_kbd[0].active_keys())) or
                 not alt_f4_over):
             if event.value == 0:
                 alt_f4_over = True

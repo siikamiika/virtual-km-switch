@@ -106,9 +106,9 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
     to virtual input devices."""
     def __init__(self, keyboard, mouse):
         # event sources
-        self.hw_kbd = evdev.InputDevice(keyboard)
-        self.hw_mouse = evdev.InputDevice(mouse)
-        self.hw_by_fd = {dev.fd: dev for dev in [self.hw_kbd, self.hw_mouse]}
+        self.hw_kbd = [evdev.InputDevice(k) for k in (keyboard if isinstance(keyboard, list) else [keyboard])]
+        self.hw_mouse = [evdev.InputDevice(m) for m in (mouse if isinstance(mouse, list) else [mouse])]
+        self.hw_by_fd = {dev.fd: dev for dev in self.hw_kbd + self.hw_mouse}
         self.hw_hotkey = None
         # event destinations
         self.virt_group_by_hotkey = {}
@@ -122,7 +122,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
     def add_virtual_device_group(self, hotkey, name, notify_key=None):
         """Add a virtual keyboard and a mouse that are activated with `hotkey`."""
         self.virt_group_by_hotkey[hotkey] = VirtualInputGroup(
-            self.hw_kbd, self.hw_mouse, name, notify_key=notify_key)
+            self.hw_kbd[0], self.hw_mouse[0], name, notify_key=notify_key)
 
     def add_callback_key(self, keycode, callback):
         """A key that triggers a callback"""
@@ -190,10 +190,10 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 if self.active_virt_group is not None:
                     device.grab()
                 # replace references to the disconnected device with the new one
-                if disconnected_device is self.hw_kbd:
-                    self.hw_kbd = device
+                if disconnected_device in self.hw_kbd:
+                    self.hw_kbd[self.hw_kbd.index(disconnected_device)] = device
                 else:
-                    self.hw_mouse = device
+                    self.hw_mouse[self.hw_mouse.index(disconnected_device)] = device
                 del self.hw_by_fd[disconnected_fd]
                 self.hw_by_fd[device.fd] = device
                 # select from this device again
@@ -214,7 +214,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             if event.code == self.noswitch_toggle:
                 if event.value == 1:
                     self.noswitch = not self.noswitch
-                    self.hw_kbd.set_led(LED_SCROLLL, self.noswitch)
+                    self.hw_kbd[0].set_led(LED_SCROLLL, self.noswitch)
                 return
             # let switch keys through in noswitch mode
             elif self._is_noswitch():
@@ -284,4 +284,4 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
                 virt_group.scroll_mouse(event.value)
 
     def _is_noswitch(self):
-        return self.noswitch or self.noswitch_modifier in self.hw_kbd.active_keys()
+        return self.noswitch or self.noswitch_modifier in self.hw_kbd[0].active_keys()
