@@ -2,6 +2,7 @@
 import socket
 import os
 import time
+import subprocess
 
 from Xlib import display
 
@@ -16,6 +17,9 @@ def switch(auth, mouse_y):
     sock.send(auth + b'\n')
     sock.send(f'windows {mouse_y}\n'.encode('utf-8'))
 
+def qemu_started():
+    return bool(subprocess.getoutput('pgrep -f qemu-system-x86_64'))
+
 def main():
     with open(os.path.expanduser('~/.windows-hotkey-server'), 'rb') as f:
         auth = f.read().strip()
@@ -25,7 +29,7 @@ def main():
         current_pos = get_mouse_pos()
         # switch if we are at the edge and the mouse has moved
         if current_pos != last_pos:
-            if current_pos[0] <= 0:
+            if current_pos[0] <= 0 and qemu_started():
                 switch(auth, current_pos[1])
             last_pos = current_pos
         time.sleep(0.05)
