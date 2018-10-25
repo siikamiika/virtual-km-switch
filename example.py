@@ -128,7 +128,11 @@ def main():
         if btn_right['virt_pressed'] == event.value:
             return
         def _press_after_timeout():
-            time.sleep(0.05)
+            start_time = time.time()
+            while time.time() - start_time < 0.08:
+                time.sleep(0.0001)
+                if btn_right['hw_pressed'] != 0:
+                    return
             if btn_right['hw_pressed'] == event.value:
                 km_switch.route_event(event)
                 btn_right['virt_pressed'] = event.value
