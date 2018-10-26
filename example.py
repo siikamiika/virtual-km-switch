@@ -14,6 +14,10 @@ class Handler(socketserver.StreamRequestHandler):
         if self.rfile.readline(0x2000).strip() != self.server.auth:
             return
         data = self.rfile.readline().decode('utf-8').split()
+
+        if self.server.km_switch.noswitch:
+            return
+
         if data[0] == 'windows':
             self.server.km_switch.set_active(ecodes.KEY_F1)
             mouse_x = -1
