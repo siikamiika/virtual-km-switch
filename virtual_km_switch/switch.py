@@ -35,9 +35,15 @@ def timeit(method):
 
 class VirtualInputGroup(object):
     """A uinput keyboard and mouse"""
+
+    MOUSE_CAP = {
+        EV_KEY: [BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, BTN_SIDE, BTN_EXTRA, BTN_FORWARD],
+        EV_REL: [REL_X, REL_Y, REL_WHEEL, REL_HWHEEL],
+    }
+
     def __init__(self, hw_kbd, hw_mouse, name, notify_key=None):
         self.kbd = evdev.UInput.from_device(hw_kbd, name=f'{name}-virt-kbd')
-        self.mouse = evdev.UInput.from_device(hw_mouse, name=f'{name}-virt-mouse')
+        self.mouse = evdev.UInput(VirtualInputGroup.MOUSE_CAP, name=f'{name}-virt-mouse')
         self.notify_key = notify_key
 
         # active keys and mouse buttons
@@ -95,9 +101,9 @@ class VirtualInputGroup(object):
         self.mouse.write(EV_KEY, button, value)
         self.mouse.syn()
 
-    def scroll_mouse(self, value):
+    def scroll_mouse(self, code, value):
         """Emit a mouse scroll event"""
-        self.mouse.write(EV_REL, REL_WHEEL, value)
+        self.mouse.write(EV_REL, code, value)
         self.mouse.syn()
 
 
@@ -280,8 +286,8 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             virt_group = self.virt_group_by_hotkey[self.active_virt_group]
             if event.code in {REL_X, REL_Y}:
                 virt_group.queue_mouse_move(event.code, event.value)
-            elif event.code == REL_WHEEL:
-                virt_group.scroll_mouse(event.value)
+            elif event.code in {REL_WHEEL, REL_HWHEEL}:
+                virt_group.scroll_mouse(event.code, event.value)
 
     def _is_noswitch(self):
         return self.noswitch or self.noswitch_modifier in self.hw_kbd[0].active_keys()

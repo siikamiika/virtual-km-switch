@@ -133,7 +133,7 @@ def main():
             return
         def _press_after_timeout():
             start_time = time.time()
-            while time.time() - start_time < 0.08:
+            while time.time() - start_time < 0.12:
                 time.sleep(0.0001)
                 if btn_right['hw_pressed'] != 0:
                     return
@@ -146,6 +146,16 @@ def main():
             km_switch.route_event(event)
             btn_right['virt_pressed'] = event.value
     km_switch.add_callback_key(ecodes.BTN_RIGHT, _handle_btn_right)
+    # enable horizonal scrolling using shift
+    def _handle_rel_wheel(event):
+        if {ecodes.KEY_LEFTSHIFT, ecodes.KEY_RIGHTSHIFT} & set(
+            km_switch.hw_kbd[0].active_keys()
+        ):
+            event.code = ecodes.REL_HWHEEL
+            # flip direction, down should be right and up left
+            event.value = -event.value
+        km_switch.route_event(event)
+    km_switch.add_callback_key(ecodes.REL_WHEEL, _handle_rel_wheel)
 
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
