@@ -243,9 +243,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
         # else/pass:
         # the event triggers a callback
-        if (event.code in self.callbacks_by_key and
-                # don't trigger callbacks in noswitch mode except for the modifier
-                not (event.code != self.noswitch_modifier and self._is_noswitch())):
+        if (event.code in self.callbacks_by_key):
             for callback in self.callbacks_by_key[event.code]:
                 callback(event)
             return

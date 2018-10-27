@@ -94,6 +94,9 @@ def main():
     # else, remap f4 to keypad 4 and broadcast it
     alt_f4_over = True
     def _handle_key_f4(event):
+        # not needed in noswitch mode
+        if km_switch.noswitch:
+            return km_switch.route_event(event)
         nonlocal alt_f4_over
         if ((event.value == 1 and
              {ecodes.KEY_LEFTALT, ecodes.KEY_RIGHTALT} & set(km_switch.hw_kbd[0].active_keys())) or
