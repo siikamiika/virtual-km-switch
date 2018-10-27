@@ -52,6 +52,9 @@ class VirtualInputGroup(object):
         self.mouse_move_x = 0
         self.mouse_move_y = 0
 
+        self.mouse_wheel_x = 0
+        self.mouse_wheel_y = 0
+
     # key events
     def write_key(self, key, value):
         """Emit a key event"""
@@ -78,6 +81,13 @@ class VirtualInputGroup(object):
         elif code == REL_Y:
             self.mouse_move_y += value
 
+    def queue_mouse_scroll(self, code, value):
+        """Used to combine many small events into an atomic mouse scroll"""
+        if code == REL_HWHEEL:
+            self.mouse_wheel_x += value
+        elif code == REL_WHEEL:
+            self.mouse_wheel_y += value
+
     def commit_mouse(self):
         """If the mouse has moved, emit a mouse move event"""
         syn = False
@@ -87,9 +97,15 @@ class VirtualInputGroup(object):
         if self.mouse_move_y:
             self.mouse.write(EV_REL, REL_Y, self.mouse_move_y)
             syn = True
+        if self.mouse_wheel_x:
+            self.mouse.write(EV_REL, REL_HWHEEL, self.mouse_wheel_x)
+            syn = True
+        if self.mouse_wheel_y:
+            self.mouse.write(EV_REL, REL_WHEEL, self.mouse_wheel_y)
+            syn = True
         if syn:
             self.mouse.syn()
-            self.mouse_move_x = self.mouse_move_y = 0
+            self.mouse_move_x = self.mouse_move_y = self.mouse_wheel_x = self.mouse_wheel_y = 0
 
     def write_mouse_button(self, button, value):
         """Emit a mouse button event"""
@@ -99,11 +115,6 @@ class VirtualInputGroup(object):
             try: self.active_keys.remove(button)
             except KeyError: pass
         self.mouse.write(EV_KEY, button, value)
-        self.mouse.syn()
-
-    def scroll_mouse(self, code, value):
-        """Emit a mouse scroll event"""
-        self.mouse.write(EV_REL, code, value)
         self.mouse.syn()
 
 
@@ -285,7 +296,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             if event.code in {REL_X, REL_Y}:
                 virt_group.queue_mouse_move(event.code, event.value)
             elif event.code in {REL_WHEEL, REL_HWHEEL}:
-                virt_group.scroll_mouse(event.code, event.value)
+                virt_group.queue_mouse_scroll(event.code, event.value)
 
     def _is_noswitch(self):
         return self.noswitch or self.noswitch_modifier in self.hw_kbd[0].active_keys()

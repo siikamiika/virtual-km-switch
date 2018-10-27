@@ -159,6 +159,19 @@ def main():
             event.value = -event.value
         km_switch.route_event(event)
     km_switch.add_callback_key(ecodes.REL_WHEEL, _handle_rel_wheel)
+    # scroll by moving mouse when Super and Muhenkan are pressed
+    def _handle_rel_xy(event):
+        if {ecodes.KEY_LEFTMETA, ecodes.KEY_MUHENKAN}.issubset(set(
+            km_switch.hw_kbd[0].active_keys()
+        )):
+            if event.code == ecodes.REL_X:
+                event.code = ecodes.REL_HWHEEL
+            elif event.code == ecodes.REL_Y:
+                event.code = ecodes.REL_WHEEL
+                event.value = -event.value
+        km_switch.route_event(event)
+    km_switch.add_callback_key(ecodes.REL_X, _handle_rel_xy)
+    km_switch.add_callback_key(ecodes.REL_Y, _handle_rel_xy)
 
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
