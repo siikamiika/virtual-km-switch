@@ -165,6 +165,12 @@ def main():
         # get previous event and store current
         prev = btn_sideextra[event.code]
         btn_sideextra[event.code] = (event, time.time())
+        # cancel both if both have been pressed within the time frame
+        other_code = next(c for c in btn_sideextra if c != event.code)
+        other_event = btn_sideextra[other_code][0]
+        btn_sideextra[other_code] = (other_event, 0)
+        if other_event and other_event.value != 0:
+            btn_sideextra[event.code] = (event, 0)
         # if the button was previously down, is now released, and it hasn't been too long
         if (prev[0] and prev[0].value == 1 and event.value == 0
                 and time.time() - prev[1] < 0.4):
