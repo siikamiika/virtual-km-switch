@@ -149,16 +149,6 @@ def main():
             km_switch.route_event(event)
             btn_right['virt_pressed'] = event.value
     km_switch.add_callback_key(ecodes.BTN_RIGHT, _handle_btn_right)
-    # enable horizonal scrolling using shift
-    def _handle_rel_wheel(event):
-        if {ecodes.KEY_LEFTSHIFT, ecodes.KEY_RIGHTSHIFT} & set(
-            km_switch.hw_kbd[0].active_keys()
-        ):
-            event.code = ecodes.REL_HWHEEL
-            # flip direction, down should be right and up left
-            event.value = -event.value
-        km_switch.route_event(event)
-    km_switch.add_callback_key(ecodes.REL_WHEEL, _handle_rel_wheel)
     # scroll by moving mouse when both mouse side buttons are pressed
     btn_sideextra = {ecodes.BTN_SIDE: (None, 0), ecodes.BTN_EXTRA: (None, 0)}
     def _handle_btn_sideextra(event):
@@ -212,6 +202,33 @@ def main():
         else:
             km_switch.route_event(event)
     km_switch.add_callback_key(ecodes.BTN_MIDDLE, _handle_btn_middle)
+    # enable horizontal scrolling using shift and switch between tabs using side button
+    def _handle_rel_wheel(event):
+        # tab switching
+        btn_side = btn_sideextra[ecodes.BTN_SIDE][0]
+        if btn_side and btn_side.value != 0:
+            if event.value < 0:
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_TAB, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_TAB, 0))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 0))
+            else:
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTSHIFT, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_TAB, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_TAB, 0))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 0))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTSHIFT, 0))
+            return
+        # horizontal scrolling
+        if {ecodes.KEY_LEFTSHIFT, ecodes.KEY_RIGHTSHIFT} & set(
+            km_switch.hw_kbd[0].active_keys()
+        ):
+            event.code = ecodes.REL_HWHEEL
+            # flip direction, down should be right and up left
+            event.value = -event.value
+        km_switch.route_event(event)
+    km_switch.add_callback_key(ecodes.REL_WHEEL, _handle_rel_wheel)
 
 
     # set noswitch modifier and lock
