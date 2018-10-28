@@ -207,6 +207,7 @@ def main():
         # tab switching
         btn_side = btn_sideextra[ecodes.BTN_SIDE][0]
         if btn_side and btn_side.value != 0:
+            btn_sideextra[ecodes.BTN_SIDE] = (btn_side, 0)
             if event.value < 0:
                 km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 1))
                 km_switch.route_event(create_key_event(ecodes.KEY_TAB, 1))
