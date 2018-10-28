@@ -159,11 +159,24 @@ def main():
             event.value = -event.value
         km_switch.route_event(event)
     km_switch.add_callback_key(ecodes.REL_WHEEL, _handle_rel_wheel)
-    # scroll by moving mouse when Super and Muhenkan are pressed
+    # scroll by moving mouse when both mouse side buttons are pressed
+    btn_sideextra = {ecodes.BTN_SIDE: (None, 0), ecodes.BTN_EXTRA: (None, 0)}
+    def _handle_btn_sideextra(event):
+        # get previous event and store current
+        prev = btn_sideextra[event.code]
+        btn_sideextra[event.code] = (event, time.time())
+        # if the button was previously down, is now released, and it hasn't been too long
+        if (prev[0] and prev[0].value == 1 and event.value == 0
+                and time.time() - prev[1] < 0.4):
+            km_switch.route_event(prev[0])
+            km_switch.route_event(event)
+    km_switch.add_callback_key(ecodes.BTN_SIDE, _handle_btn_sideextra)
+    km_switch.add_callback_key(ecodes.BTN_EXTRA, _handle_btn_sideextra)
     def _handle_rel_xy(event):
-        if {ecodes.KEY_LEFTMETA, ecodes.KEY_MUHENKAN}.issubset(set(
-            km_switch.hw_kbd[0].active_keys()
-        )):
+        if {ecodes.BTN_SIDE, ecodes.BTN_EXTRA}.issubset({
+            k for k in btn_sideextra
+            if btn_sideextra[k][0] and btn_sideextra[k][0].value
+        }):
             if event.code == ecodes.REL_X:
                 event.code = ecodes.REL_HWHEEL
             elif event.code == ecodes.REL_Y:
