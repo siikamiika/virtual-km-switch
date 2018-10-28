@@ -33,6 +33,12 @@ def timeit(method):
 
     return _timed_method
 
+
+def create_key_event(code, value):
+    sec, usec = divmod(int(time.time() * 10**6), 10**6)
+    return evdev.events.InputEvent(sec, usec, EV_KEY, code, value)
+
+
 class VirtualInputGroup(object):
     """A uinput keyboard and mouse"""
 

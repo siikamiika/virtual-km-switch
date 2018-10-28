@@ -1,2 +1,2 @@
 """Module imports"""
-from .switch import VirtualKMSwitch
+from .switch import VirtualKMSwitch, create_key_event

@@ -6,7 +6,7 @@ import threading
 import socketserver
 import time
 
-from virtual_km_switch import VirtualKMSwitch, ecodes
+from virtual_km_switch import VirtualKMSwitch, create_key_event, ecodes
 
 class Handler(socketserver.StreamRequestHandler):
 
@@ -191,6 +191,28 @@ def main():
         km_switch.route_event(event)
     km_switch.add_callback_key(ecodes.REL_X, _handle_rel_xy)
     km_switch.add_callback_key(ecodes.REL_Y, _handle_rel_xy)
+    # close or reopen tab with middle click
+    def _handle_btn_middle(event):
+        btn_side = btn_sideextra[ecodes.BTN_SIDE][0]
+        btn_extra = btn_sideextra[ecodes.BTN_EXTRA][0]
+        if btn_side and btn_side.value != 0:
+            if event.value == 1:
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_W, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_W, 0))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 0))
+        elif btn_extra and btn_extra.value != 0:
+            if event.value == 1:
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTSHIFT, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_T, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_T, 0))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 0))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTSHIFT, 0))
+        else:
+            km_switch.route_event(event)
+    km_switch.add_callback_key(ecodes.BTN_MIDDLE, _handle_btn_middle)
+
 
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
