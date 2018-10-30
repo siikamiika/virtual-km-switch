@@ -149,7 +149,7 @@ def main():
             km_switch.route_event(event)
             btn_right['virt_pressed'] = event.value
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_RIGHT), _handle_btn_right)
-    # scroll by moving mouse when both mouse side buttons are pressed
+    # overload mouse side buttons
     btn_sideextra = {ecodes.BTN_SIDE: (None, 0), ecodes.BTN_EXTRA: (None, 0)}
     def _handle_btn_sideextra(event):
         # get previous event and store current
@@ -163,16 +163,17 @@ def main():
             btn_sideextra[event.code] = (event, 0)
         # if the button was previously down, is now released, and it hasn't been too long
         if (prev[0] and prev[0].value == 1 and event.value == 0
-                and time.time() - prev[1] < 0.4):
+                and time.time() - prev[1] < 0.3):
             km_switch.route_event(prev[0])
             km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_SIDE), _handle_btn_sideextra)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_EXTRA), _handle_btn_sideextra)
+    # scroll by moving mouse when BTN_EXTRA is pressed
     def _handle_rel_xy(event):
-        if {ecodes.BTN_SIDE, ecodes.BTN_EXTRA}.issubset({
-            k for k in btn_sideextra
-            if btn_sideextra[k][0] and btn_sideextra[k][0].value
-        }):
+        btn_extra = btn_sideextra[ecodes.BTN_EXTRA]
+        if not btn_extra[0] or btn_extra[0].value == 0:
+            pass
+        elif time.time() - btn_extra[1] > 0.3:
             if event.code == ecodes.REL_X:
                 event.code = ecodes.REL_HWHEEL
             elif event.code == ecodes.REL_Y:
@@ -181,7 +182,8 @@ def main():
         km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_REL, ecodes.REL_X), _handle_rel_xy)
     km_switch.add_callback((ecodes.EV_REL, ecodes.REL_Y), _handle_rel_xy)
-    # close or reopen tab with middle click
+    # close tab on middle click when BTN_SIDE is pressed,
+    # reopen tab with middle click when BTN_EXTRA is pressed
     def _handle_btn_middle(event):
         btn_side = btn_sideextra[ecodes.BTN_SIDE][0]
         btn_extra = btn_sideextra[ecodes.BTN_EXTRA][0]
@@ -202,7 +204,8 @@ def main():
         else:
             km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_MIDDLE), _handle_btn_middle)
-    # enable horizontal scrolling using shift and switch between tabs using side button
+    # enable horizontal scrolling when KEY_LEFTSHIFT is pressed,
+    # switch between tabs when BTN_SIDE is pressed
     def _handle_rel_wheel(event):
         # tab switching
         btn_side = btn_sideextra[ecodes.BTN_SIDE][0]
