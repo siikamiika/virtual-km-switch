@@ -73,7 +73,7 @@ def main():
     def _handle_key_muhenkan(event):
         for virt_group in km_switch.virt_group_by_hotkey.values():
             virt_group.write_key(event.code, event.value)
-    km_switch.add_callback_key(ecodes.KEY_MUHENKAN, _handle_key_muhenkan)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.KEY_MUHENKAN), _handle_key_muhenkan)
     # handle clipboard exchange at windows side
     def _handle_key_compose(event):
         # only on keydown
@@ -89,7 +89,7 @@ def main():
         # if linux is active, send menu to windows, copying windows clipboard to linux
         else:
             windows_virt_group.press_and_release_key(event.code)
-    km_switch.add_callback_key(ecodes.KEY_COMPOSE, _handle_key_compose)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.KEY_COMPOSE), _handle_key_compose)
     # if alt is active, send key as-is (alt+f4)
     # else, remap f4 to keypad 4 and broadcast it
     alt_f4_over = True
@@ -110,24 +110,24 @@ def main():
             event.code = ecodes.KEY_KP4
             for virt_group in km_switch.virt_group_by_hotkey.values():
                 virt_group.write_key(event.code, event.value)
-    km_switch.add_callback_key(ecodes.KEY_F4, _handle_key_f4)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.KEY_F4), _handle_key_f4)
     # remap numpad numbers to regular number keys (numpad keycodes are used for notifications)
-    def remap_active(from_code, to_code):
+    def remap(from_code, to_code):
         """Simple keycode remap for the active virtual group"""
         def _handle_remap(event):
             event.code = to_code
             km_switch.route_event(event)
-        km_switch.add_callback_key(from_code, _handle_remap)
-    remap_active(ecodes.KEY_KP0, ecodes.KEY_0)
-    remap_active(ecodes.KEY_KP1, ecodes.KEY_1)
-    remap_active(ecodes.KEY_KP2, ecodes.KEY_2)
-    remap_active(ecodes.KEY_KP3, ecodes.KEY_3)
-    remap_active(ecodes.KEY_KP4, ecodes.KEY_4)
-    remap_active(ecodes.KEY_KP5, ecodes.KEY_5)
-    remap_active(ecodes.KEY_KP6, ecodes.KEY_6)
-    remap_active(ecodes.KEY_KP7, ecodes.KEY_7)
-    remap_active(ecodes.KEY_KP8, ecodes.KEY_8)
-    remap_active(ecodes.KEY_KP9, ecodes.KEY_9)
+        km_switch.add_callback((ecodes.EV_KEY, from_code), _handle_remap)
+    remap(ecodes.KEY_KP0, ecodes.KEY_0)
+    remap(ecodes.KEY_KP1, ecodes.KEY_1)
+    remap(ecodes.KEY_KP2, ecodes.KEY_2)
+    remap(ecodes.KEY_KP3, ecodes.KEY_3)
+    remap(ecodes.KEY_KP4, ecodes.KEY_4)
+    remap(ecodes.KEY_KP5, ecodes.KEY_5)
+    remap(ecodes.KEY_KP6, ecodes.KEY_6)
+    remap(ecodes.KEY_KP7, ecodes.KEY_7)
+    remap(ecodes.KEY_KP8, ecodes.KEY_8)
+    remap(ecodes.KEY_KP9, ecodes.KEY_9)
     # make faulty mouse button less annoying
     btn_right = dict(hw_pressed=0, virt_pressed=0)
     def _handle_btn_right(event):
@@ -148,7 +148,7 @@ def main():
         else:
             km_switch.route_event(event)
             btn_right['virt_pressed'] = event.value
-    km_switch.add_callback_key(ecodes.BTN_RIGHT, _handle_btn_right)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_RIGHT), _handle_btn_right)
     # scroll by moving mouse when both mouse side buttons are pressed
     btn_sideextra = {ecodes.BTN_SIDE: (None, 0), ecodes.BTN_EXTRA: (None, 0)}
     def _handle_btn_sideextra(event):
@@ -166,8 +166,8 @@ def main():
                 and time.time() - prev[1] < 0.4):
             km_switch.route_event(prev[0])
             km_switch.route_event(event)
-    km_switch.add_callback_key(ecodes.BTN_SIDE, _handle_btn_sideextra)
-    km_switch.add_callback_key(ecodes.BTN_EXTRA, _handle_btn_sideextra)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_SIDE), _handle_btn_sideextra)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_EXTRA), _handle_btn_sideextra)
     def _handle_rel_xy(event):
         if {ecodes.BTN_SIDE, ecodes.BTN_EXTRA}.issubset({
             k for k in btn_sideextra
@@ -179,8 +179,8 @@ def main():
                 event.code = ecodes.REL_WHEEL
                 event.value = -event.value
         km_switch.route_event(event)
-    km_switch.add_callback_key(ecodes.REL_X, _handle_rel_xy)
-    km_switch.add_callback_key(ecodes.REL_Y, _handle_rel_xy)
+    km_switch.add_callback((ecodes.EV_REL, ecodes.REL_X), _handle_rel_xy)
+    km_switch.add_callback((ecodes.EV_REL, ecodes.REL_Y), _handle_rel_xy)
     # close or reopen tab with middle click
     def _handle_btn_middle(event):
         btn_side = btn_sideextra[ecodes.BTN_SIDE][0]
@@ -201,7 +201,7 @@ def main():
                 km_switch.route_event(create_key_event(ecodes.KEY_LEFTSHIFT, 0))
         else:
             km_switch.route_event(event)
-    km_switch.add_callback_key(ecodes.BTN_MIDDLE, _handle_btn_middle)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_MIDDLE), _handle_btn_middle)
     # enable horizontal scrolling using shift and switch between tabs using side button
     def _handle_rel_wheel(event):
         # tab switching
@@ -229,7 +229,7 @@ def main():
             # flip direction, down should be right and up left
             event.value = -event.value
         km_switch.route_event(event)
-    km_switch.add_callback_key(ecodes.REL_WHEEL, _handle_rel_wheel)
+    km_switch.add_callback((ecodes.EV_REL, ecodes.REL_WHEEL), _handle_rel_wheel)
 
 
     # set noswitch modifier and lock

@@ -137,7 +137,7 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
         self.virt_group_by_hotkey = {}
         self.active_virt_group = None
         # special
-        self.callbacks_by_key = dict()
+        self.callbacks_by_event = dict()
         self.noswitch_modifier = None
         self.noswitch_toggle = None
         self.noswitch = False
@@ -147,11 +147,11 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
         self.virt_group_by_hotkey[hotkey] = VirtualInputGroup(
             self.hw_kbd[0], self.hw_mouse[0], name, notify_key=notify_key)
 
-    def add_callback_key(self, keycode, callback):
-        """A key that triggers a callback"""
-        if keycode not in self.callbacks_by_key:
-            self.callbacks_by_key[keycode] = callbacks = []
-        callbacks.append(callback)
+    def add_callback(self, event, callback):
+        """An event that triggers a callback"""
+        if event not in self.callbacks_by_event:
+            self.callbacks_by_event[event] = []
+        self.callbacks_by_event[event].append(callback)
 
     def set_noswitch_modifier(self, keycode):
         """When holding this key, switch hotkeys will be sent to the virtual device"""
@@ -260,8 +260,8 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
         # else/pass:
         # the event triggers a callback
-        if (event.code in self.callbacks_by_key):
-            for callback in self.callbacks_by_key[event.code]:
+        if ((event.type, event.code) in self.callbacks_by_event):
+            for callback in self.callbacks_by_event[(event.type, event.code)]:
                 callback(event)
             return
 
