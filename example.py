@@ -139,7 +139,7 @@ def main():
             time.sleep(0.12)
             if btn_right['hw'] == _btn_right:
                 km_switch.route_event(event)
-                btn_right['virt'] = _btn_right
+                btn_right['virt'] = _btn_right[0]
         if event.value == 0:
             threading.Thread(target=_press_after_timeout).start()
         else:
