@@ -129,25 +129,22 @@ def main():
     remap(ecodes.KEY_KP8, ecodes.KEY_8)
     remap(ecodes.KEY_KP9, ecodes.KEY_9)
     # make faulty mouse button less annoying
-    btn_right = dict(hw_pressed=0, virt_pressed=0)
+    btn_right = dict(hw=(None, 0), virt=None)
     def _handle_btn_right(event):
-        btn_right['hw_pressed'] = event.value
-        if btn_right['virt_pressed'] == event.value:
+        _btn_right = (event.value, time.time())
+        btn_right['hw'] = _btn_right
+        if btn_right['virt'] == _btn_right[0]:
             return
         def _press_after_timeout():
-            start_time = time.time()
-            while time.time() - start_time < 0.12:
-                time.sleep(0.0001)
-                if btn_right['hw_pressed'] != 0:
-                    return
-            if btn_right['hw_pressed'] == event.value:
+            time.sleep(0.12)
+            if btn_right['hw'] == _btn_right:
                 km_switch.route_event(event)
-                btn_right['virt_pressed'] = event.value
+                btn_right['virt'] = _btn_right
         if event.value == 0:
             threading.Thread(target=_press_after_timeout).start()
         else:
             km_switch.route_event(event)
-            btn_right['virt_pressed'] = event.value
+            btn_right['virt'] = _btn_right[0]
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_RIGHT), _handle_btn_right)
     # overload mouse side buttons
     btn_sideextra = {ecodes.BTN_SIDE: (None, 0), ecodes.BTN_EXTRA: (None, 0)}
@@ -163,7 +160,7 @@ def main():
             btn_sideextra[event.code] = (event, 0)
         # if the button was previously down, is now released, and it hasn't been too long
         if (prev[0] and prev[0].value == 1 and event.value == 0
-                and time.time() - prev[1] < 0.3):
+                and time.time() - prev[1] < 0.15):
             km_switch.route_event(prev[0])
             km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_SIDE), _handle_btn_sideextra)
@@ -173,7 +170,7 @@ def main():
         btn_extra = btn_sideextra[ecodes.BTN_EXTRA]
         if not btn_extra[0] or btn_extra[0].value == 0:
             pass
-        elif time.time() - btn_extra[1] > 0.3:
+        elif time.time() - btn_extra[1] > 0.15:
             if event.code == ecodes.REL_X:
                 event.code = ecodes.REL_HWHEEL
             elif event.code == ecodes.REL_Y:
