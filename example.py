@@ -160,18 +160,26 @@ def main():
             btn_sideextra[event.code] = (event, 0)
         # if the button was previously down, is now released, and it hasn't been too long
         if (prev[0] and prev[0].value == 1 and event.value == 0
-                and time.time() - prev[1] < 0.15):
+                and time.time() - prev[1] < 0.18):
             km_switch.route_event(prev[0])
             km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_SIDE), _handle_btn_sideextra)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_EXTRA), _handle_btn_sideextra)
     # scroll by moving mouse when BTN_EXTRA is pressed
+    scroll_movement = {ecodes.REL_X: 0, ecodes.REL_Y: 0}
     def _handle_rel_xy(event):
         btn_extra = btn_sideextra[ecodes.BTN_EXTRA]
         if not btn_extra[0] or btn_extra[0].value == 0:
             pass
-        elif time.time() - btn_extra[1] > 0.15:
-            if event.code == ecodes.REL_X:
+        elif time.time() - btn_extra[1] > 0.18:
+            movement = scroll_movement[event.code] + event.value
+            direction = -1 if movement < 0 else 1
+            event.value, scroll_movement[event.code] = (
+                direction * n for n in divmod(abs(movement), 7)
+            )
+            if event.value == 0:
+                return
+            elif event.code == ecodes.REL_X:
                 event.code = ecodes.REL_HWHEEL
             elif event.code == ecodes.REL_Y:
                 event.code = ecodes.REL_WHEEL
