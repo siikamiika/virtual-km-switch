@@ -39,6 +39,11 @@ def create_key_event(code, value):
     return evdev.events.InputEvent(sec, usec, EV_KEY, code, value)
 
 
+def create_rel_event(code, value):
+    sec, usec = divmod(int(time.time() * 10**6), 10**6)
+    return evdev.events.InputEvent(sec, usec, EV_REL, code, value)
+
+
 class VirtualInputGroup(object):
     """A uinput keyboard and mouse"""
 

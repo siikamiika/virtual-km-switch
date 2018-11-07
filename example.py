@@ -6,7 +6,7 @@ import threading
 import socketserver
 import time
 
-from virtual_km_switch import VirtualKMSwitch, create_key_event, ecodes
+from virtual_km_switch import VirtualKMSwitch, create_key_event, create_rel_event, ecodes
 
 class Handler(socketserver.StreamRequestHandler):
 
@@ -169,22 +169,20 @@ def main():
     scroll_movement = {ecodes.REL_X: 0, ecodes.REL_Y: 0}
     def _handle_rel_xy(event):
         btn_extra = btn_sideextra[ecodes.BTN_EXTRA]
-        if not btn_extra[0] or btn_extra[0].value == 0:
-            pass
-        elif time.time() - btn_extra[1] > 0.18:
-            movement = scroll_movement[event.code] + event.value
-            direction = -1 if movement < 0 else 1
-            event.value, scroll_movement[event.code] = (
-                direction * n for n in divmod(abs(movement), 7)
-            )
-            if event.value == 0:
-                return
-            elif event.code == ecodes.REL_X:
-                event.code = ecodes.REL_HWHEEL
+        if btn_extra[0] and btn_extra[0].value != 0 and time.time() - btn_extra[1] > 0.18:
+            raw_movement = scroll_movement[event.code] + event.value
+            direction = -1 if raw_movement < 0 else 1
+            distance = abs(raw_movement) // 7
+            scroll_movement[event.code] = direction * (abs(raw_movement) % 7)
+            if event.code == ecodes.REL_X:
+                code = ecodes.REL_HWHEEL
             elif event.code == ecodes.REL_Y:
-                event.code = ecodes.REL_WHEEL
-                event.value = -event.value
-        km_switch.route_event(event)
+                code = ecodes.REL_WHEEL
+                direction = -direction
+            for _ in range(distance):
+                km_switch.route_event(create_rel_event(code, direction))
+        else:
+            km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_REL, ecodes.REL_X), _handle_rel_xy)
     km_switch.add_callback((ecodes.EV_REL, ecodes.REL_Y), _handle_rel_xy)
     # close tab on middle click when BTN_SIDE is pressed,
