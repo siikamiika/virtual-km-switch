@@ -207,6 +207,18 @@ def main():
         else:
             km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_MIDDLE), _handle_btn_middle)
+    # toggle fullscreen with left click when BTN_SIDE is pressed
+    def _handle_btn_left(event):
+        btn_side = btn_sideextra[ecodes.BTN_SIDE][0]
+        if btn_side and btn_side.value != 0:
+            if event.value == 1:
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTMETA, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_F, 1))
+                km_switch.route_event(create_key_event(ecodes.KEY_F, 0))
+                km_switch.route_event(create_key_event(ecodes.KEY_LEFTMETA, 0))
+        else:
+            km_switch.route_event(event)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_LEFT), _handle_btn_left)
     # enable horizontal scrolling when KEY_LEFTSHIFT is pressed,
     # switch between tabs when BTN_SIDE is pressed
     def _handle_rel_wheel(event):
