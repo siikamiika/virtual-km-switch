@@ -256,6 +256,22 @@ def main():
             event.value = -event.value
         km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_REL, ecodes.REL_WHEEL), _handle_rel_wheel)
+    # mac vm specific
+    def _handle_key_henkan(event):
+        if os.path.isfile("/tmp/.mac_running") and km_switch.active_virt_group == ecodes.KEY_F1:
+            event.code = ecodes.KEY_RIGHTALT
+        km_switch.route_event(event)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.KEY_HENKAN), _handle_key_henkan)
+    def _handle_key_muhenkan(event):
+        if os.path.isfile("/tmp/.mac_running") and km_switch.active_virt_group == ecodes.KEY_F1:
+            event.code = ecodes.KEY_RIGHTMETA
+        km_switch.route_event(event)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.KEY_MUHENKAN), _handle_key_muhenkan)
+    def _handle_key_katakanahiragana(event):
+        if os.path.isfile("/tmp/.mac_running") and km_switch.active_virt_group == ecodes.KEY_F1:
+            event.code = ecodes.KEY_BACKSPACE
+        km_switch.route_event(event)
+    km_switch.add_callback((ecodes.EV_KEY, ecodes.KEY_KATAKANAHIRAGANA), _handle_key_katakanahiragana)
 
 
     # set noswitch modifier and lock
