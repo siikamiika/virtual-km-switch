@@ -187,7 +187,15 @@ def main():
     km_switch.add_callback((ecodes.EV_REL, ecodes.REL_Y), _handle_rel_xy)
     # close tab on middle click when BTN_SIDE is pressed,
     # reopen tab with middle click when BTN_EXTRA is pressed
+    # also, limit click frequency like with right click
+    btn_middle = {0: False, 1: 0}
     def _handle_btn_middle(event):
+        now = time.time()
+        if event.value == 1 and now - btn_middle[1] > 0.1:
+            btn_middle[1] = now
+            btn_middle[0] = False
+        elif not btn_middle[0]:
+            btn_middle[0] = True
         btn_side = btn_sideextra[ecodes.BTN_SIDE][0]
         btn_extra = btn_sideextra[ecodes.BTN_EXTRA][0]
         if btn_side and btn_side.value != 0:
