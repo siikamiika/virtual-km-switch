@@ -276,7 +276,7 @@ def main():
 
     # set noswitch modifier and lock
     km_switch.set_noswitch_modifier(ecodes.KEY_MUHENKAN)
-    km_switch.set_noswitch_toggle(ecodes.KEY_ESC)
+    km_switch.set_noswitch_toggle(ecodes.KEY_PAUSE)
 
     # set linux active
     km_switch.set_active(ecodes.KEY_F2)
