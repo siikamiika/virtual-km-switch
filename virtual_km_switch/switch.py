@@ -121,10 +121,13 @@ class VirtualInputGroup(object):
 class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
     """Grabs a hardware keyboard and a mouse and redirects their input events
     to virtual input devices."""
-    def __init__(self, keyboard, mouse):
+    def __init__(self, keyboard, mouse=None):
         # event sources
         self.hw_kbd = [evdev.InputDevice(k) for k in (keyboard if isinstance(keyboard, list) else [keyboard])]
-        self.hw_mouse = [evdev.InputDevice(m) for m in (mouse if isinstance(mouse, list) else [mouse])]
+        if mouse:
+            self.hw_mouse = [evdev.InputDevice(m) for m in (mouse if isinstance(mouse, list) else [mouse])]
+        else:
+            self.hw_mouse = []
         self.hw_by_fd = {dev.fd: dev for dev in self.hw_kbd + self.hw_mouse}
         self.hw_hotkey = None
         # event destinations
@@ -138,8 +141,9 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
 
     def add_virtual_device_group(self, hotkey, name, notify_key=None):
         """Add a virtual keyboard and a mouse that are activated with `hotkey`."""
+        mouse = self.hw_mouse[0] if self.hw_mouse else None
         self.virt_group_by_hotkey[hotkey] = VirtualInputGroup(
-            self.hw_kbd[0], self.hw_mouse[0], name, notify_key=notify_key)
+            self.hw_kbd[0], mouse, name, notify_key=notify_key)
 
     def add_callback(self, event, callback):
         """An event that triggers a callback"""
