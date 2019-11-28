@@ -191,7 +191,7 @@ def main():
     btn_middle = {0: False, 1: 0}
     def _handle_btn_middle(event):
         now = time.time()
-        if event.value == 1 and now - btn_middle[1] > 0.1:
+        if event.value == 1 and now - btn_middle[1] > 0.3:
             btn_middle[1] = now
             btn_middle[0] = False
         elif not btn_middle[0]:
@@ -227,7 +227,6 @@ def main():
         else:
             km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.BTN_LEFT), _handle_btn_left)
-    # enable horizontal scrolling when KEY_LEFTSHIFT is pressed,
     # switch between tabs when BTN_SIDE is pressed
     def _handle_rel_wheel(event):
         # tab switching
@@ -247,13 +246,6 @@ def main():
                 km_switch.route_event(create_key_event(ecodes.KEY_LEFTCTRL, 0))
                 km_switch.route_event(create_key_event(ecodes.KEY_LEFTSHIFT, 0))
             return
-        # horizontal scrolling
-        if {ecodes.KEY_LEFTSHIFT, ecodes.KEY_RIGHTSHIFT} & set(
-            km_switch.hw_kbd[0].active_keys()
-        ):
-            event.code = ecodes.REL_HWHEEL
-            # flip direction, down should be right and up left
-            event.value = -event.value
         km_switch.route_event(event)
     km_switch.add_callback((ecodes.EV_REL, ecodes.REL_WHEEL), _handle_rel_wheel)
     # mac vm specific
