@@ -53,6 +53,7 @@ class VirtualInputGroup(object):
     }
 
     def __init__(self, hw_kbd, hw_mouse, name, notify_key=None):
+        self.name = name
         self.kbd = evdev.UInput.from_device(hw_kbd, name=f'{name}-virt-kbd')
         self.mouse = evdev.UInput(VirtualInputGroup.MOUSE_CAP, name=f'{name}-virt-mouse')
         self.notify_key = notify_key

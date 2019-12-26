@@ -72,6 +72,9 @@ def main():
     # broadcast VoIP key
     def _handle_key_muhenkan(event):
         for virt_group in km_switch.virt_group_by_hotkey.values():
+            # discord doesn't support muhenkan
+            if km_switch.active_virt_group == ecodes.KEY_F1 and virt_group.name == 'linux':
+                virt_group.write_key(ecodes.KEY_LEFTALT, event.value)
             virt_group.write_key(event.code, event.value)
     km_switch.add_callback((ecodes.EV_KEY, ecodes.KEY_MUHENKAN), _handle_key_muhenkan)
     # handle clipboard exchange at windows side
