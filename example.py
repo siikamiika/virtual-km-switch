@@ -59,9 +59,12 @@ class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
         super().__init__(*args, **kwargs)
 
 def main():
-    kbd_path = '/dev/input/by-id/usb-04d9_USB_Keyboard-event-kbd'
+    kbd_paths = [
+        '/dev/input/by-id/usb-04d9_USB_Keyboard-event-kbd',
+        '/dev/input/by-id/usb-Logitech_USB_Receiver-if02-event-mouse',
+    ]
     mouse_path = '/dev/input/by-id/usb-Kingsis_Peripherals_ZOWIE_Gaming_mouse-event-mouse'
-    km_switch = VirtualKMSwitch(kbd_path, mouse_path)
+    km_switch = VirtualKMSwitch(kbd_paths, mouse_path)
 
     # map F1 and F2 to switching a virtual device and notify about the switch by
     # sending KEY_KP1 or KEY_KP2
