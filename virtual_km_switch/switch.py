@@ -188,7 +188,10 @@ class VirtualKMSwitch(object): # pylint: disable=too-many-instance-attributes
             # device disconnected
             except OSError:
                 print(f'{self.hw_by_fd[readable_fd].fn} disconnected', file=sys.stderr)
-                self.hw_by_fd[readable_fd].close()
+                try:
+                    self.hw_by_fd[readable_fd].close()
+                except RuntimeError:
+                    pass
                 # don't try to read from this fd for now
                 disconnected_fds.add(readable_fd)
                 # try to reconnect in background
